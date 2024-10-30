@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { findAll } from '../../services/jednostkiList.mjs'
+import { jednostkiListAll} from '../../services/jednostkiList.mjs'
 import JednostkiListItem from './JednostkiListItem.js'
 
 function JednostkiList() {
@@ -9,7 +9,7 @@ function JednostkiList() {
     const fetchData = async () => {
         setLoading(true)
 
-        const res = await findAll()
+        const res = await jednostkiListAll()
 
         setJednostki([...res])
         setLoading(false)
