@@ -2,7 +2,8 @@ import JednostkiList from "../views/JednostkiList.js";
 
 function MainPage() {
     return (
-      <div>
+      <div
+      style={{marginTop: "3rem"}}>
         <h1>Strona Glowna</h1>
           <JednostkiList/>
       </div>

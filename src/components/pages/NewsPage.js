@@ -2,6 +2,7 @@ import React from 'react';
 import { useState, useEffect } from 'react'
 import { newsListAll} from '../../services/newsList.mjs'
 import NewsListItem from '../NewsListItem';
+import { Col } from 'react-bootstrap';
 
 function NewsPage() {
   const [loading, setLoading] = useState(false)
@@ -21,7 +22,7 @@ function NewsPage() {
   }, [])
 
   return (
-      <section>
+      <div style={{marginTop: "7rem"}}>
           <header>
               <h2>Aktualnosci</h2>
           </header>
@@ -30,12 +31,12 @@ function NewsPage() {
               <p>ladowanie...</p>
           }
 
-          <ul>
+          <Col>
           {news.length > 0 && news.map(news => (
               <NewsListItem news={news}/>
           ))}
-          </ul>
-      </section>
+          </Col>
+      </div>
   )
 }
 
