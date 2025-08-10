@@ -6,7 +6,8 @@ import Footer from "./components/pages/Footer";
 
 function NotFound() {
   return (
-    <div>
+    <div
+      style={{marginTop: "3rem"}}>
       <h2>404 Not Found</h2>
       <p>Sorry, the page you are looking for does not exist.</p>
     </div>
@@ -21,7 +22,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Outlet />}>
             <Route index element={<MainPage />} />
-            <Route path="/aktualnosci" element={<NewsSection />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

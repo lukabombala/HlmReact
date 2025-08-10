@@ -1,11 +1,13 @@
 import JednostkiList from "../views/JednostkiList.js";
+import NewsSection from "./NewsPagev2.js";
+import MainBanner from "./MainBanner.js";
 
 function MainPage() {
     return (
       <div
       style={{marginTop: "3rem"}}>
-        <h1>Strona Glowna</h1>
-          <JednostkiList/>
+        <MainBanner />
+        <NewsSection />
       </div>
     )
   }

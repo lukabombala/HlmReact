@@ -12,16 +12,14 @@ function HeaderNav() {
   const navItems = [
     { name: "Strona główna", icon: Trophy, to: "/" },
     { name: "Aktualne wyniki", icon: BarChart3, to: "/wyniki" },
-    { name: "Aktualności", icon: Newspaper, to: "/aktualnosci" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
-    { name: "Faza pucharowa", icon: Calendar, to: "/bracket" },
+    { name: "Faza pucharowa", icon: Calendar, to: "/fazapucharowa" },
   ];
 
   const location = useLocation();
 
   return (
     <Navbar
-      bg="primary"
       variant="dark"
       expand="md"
       className="shadow-lg py-3"
