@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import Nav from 'react-bootstrap/Nav';
-import Navbar from 'react-bootstrap/Navbar';
-import Container from 'react-bootstrap/Container';
-import { Col, Row } from 'react-bootstrap';
+
+import { Button, Container, Navbar, Nav } from "react-bootstrap";
+import {
+  Trophy,
+  Users,
+  Calendar,
+  BarChart3,
+  Newspaper,
+} from "lucide-react";
 
 import {
 	BrowserRouter as Router,
@@ -76,4 +81,54 @@ function MenuBar() {
     )
 }
 
-export default MenuBar
+export default function Header() {
+  const navItems = [
+    { name: "Strona główna", icon: Trophy, href: "#home" },
+    { name: "Aktualne wyniki", icon: BarChart3, href: "#results" },
+    { name: "Aktualności", icon: Newspaper, href: "#news" },
+    { name: "Zastępy", icon: Users, href: "#teams" },
+    { name: "Faza pucharowa", icon: Calendar, href: "#bracket" },
+  ];
+
+  function NotFound() {
+        return (
+            <div>
+                <h2>404 Not Found</h2>
+                <p>Sorry, the page you are looking for does not exist.</p>
+            </div>
+        );
+    }
+    
+  return (
+    <Navbar
+      bg="primary"
+      variant="dark"
+      expand="md"
+      className="shadow-lg py-3"
+      style={{ backgroundColor: "#0d7337" }}
+    >
+      <Container>
+        <Navbar.Brand className="d-flex align-items-center gap-2">
+          <Trophy size={32} className="me-2" />
+          <span className="fs-4 fw-bold">Harcerska Liga Mistrzów</span>
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="main-navbar" />
+        <Navbar.Collapse id="main-navbar">
+          <Nav className="ms-auto align-items-center gap-2">
+            {navItems.map((item) => (
+              <Nav.Link
+                key={item.name}
+                href={item.href}
+                className="d-flex align-items-center gap-2"
+                style={{ color: "var(--bs-light)" }}
+              >
+                <item.icon size={18} />
+                {item.name}
+              </Nav.Link>
+            ))}
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
+  );
+}
