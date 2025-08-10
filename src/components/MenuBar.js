@@ -18,22 +18,10 @@ import "./MenuBar.css";
 import MainPage from './pages/MainPage.js';
 import NewsPage from './pages/NewsPage.js';
 import Footer from './pages/Footer.js';
+import NewsSection from './pages/NewsPagev2.js';
 
 function MenuBar() {
     
-
-/*
-    const MenuButton = ({ to, name}) => {
-
-        return (
-            <Nav.Link to={`/${to}`}>
-                <button className="my-button">
-                    {name === '' ? "" : name}
-                </button>
-            </Nav.Link>
-        )
-    }
-*/  
 
     function NotFound() {
         return (
@@ -74,7 +62,7 @@ function MenuBar() {
                     <Routes>
                         <Route path="/" element={<Outlet />}>
                             <Route index element={<MainPage />} />
-                            <Route path="/aktualnosci" element={<NewsPage />} />
+                            <Route path="/aktualnosci" element={<NewsSection />} />
                             <Route path="*" element={<NotFound />} />
                         </Route>
                     </Routes>
