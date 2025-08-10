@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import Container from 'react-bootstrap/Container';
+import { Col, Row } from 'react-bootstrap';
 
 import {
 	BrowserRouter as Router,
@@ -16,10 +17,10 @@ import "./MenuBar.css";
 
 import MainPage from './pages/MainPage.js';
 import NewsPage from './pages/NewsPage.js';
+import Footer from './pages/Footer.js';
 
 function MenuBar() {
     
-    const [activeView, setActiveView] = useState('main');
 
 /*
     const MenuButton = ({ to, name}) => {
@@ -67,8 +68,9 @@ function MenuBar() {
                     </Navbar.Collapse>
                     </Container>
                 </Navbar>
-
+                
                 <div className="container mt-4">
+                    
                     <Routes>
                         <Route path="/" element={<Outlet />}>
                             <Route index element={<MainPage />} />
@@ -76,9 +78,12 @@ function MenuBar() {
                             <Route path="*" element={<NotFound />} />
                         </Route>
                     </Routes>
+                   
                 </div>
             </Router>
             </Container>
+
+            <Footer />
         </div>
     )
 }
