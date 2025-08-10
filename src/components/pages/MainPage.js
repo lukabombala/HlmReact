@@ -5,11 +5,16 @@ import MainBanner from "./MainBanner.js";
 function MainPage() {
     return (
       <div
-      style={{marginTop: "3rem"}}>
+        style={{
+          marginTop: "4rem",
+          minHeight: "100vh",
+          background: "#f8f9fa" 
+        }}
+      >
         <MainBanner />
         <NewsSection />
       </div>
     )
-  }
-  
-  export default MainPage
+}
+
+export default MainPage

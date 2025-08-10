@@ -8,18 +8,13 @@ export default function Footer() {
         <Row className="justify-content-center">
           <Col xs="auto" className="text-center">
             <div className="d-flex align-items-center justify-content-center gap-2 mb-3">
-              <Trophy style={{ height: 24, width: 24 }} />
-              <h3 className="fs-4 fw-semibold mb-0">Harcerska Liga Mistrzów</h3>
+              <Trophy style={{ color: "var(--bs-light)", height: 24, width: 24 }} />
+              <h3 className="fs-4 fw-semibold mb-0" style={{ color: "var(--bs-light)" }}>Harcerska Liga Mistrzów</h3>
             </div>
-            <p className="text-primary-foreground/80 mb-3">
-              Organizowany przez Związek Harcerstwa Rzeczypospolitej
+            <p className="mb-3" style={{ color: "var(--bs-light)" }}>
+              Związek Harcerstwa Rzeczypospolitej
             </p>
-            <div className="d-flex align-items-center justify-content-center gap-1 text-muted small">
-              <span>Stworzone z</span>
-              <Heart style={{ height: 16, width: 16, color: "#f87171" }} />
-              <span>dla polskiego harcerstwa</span>
-            </div>
-            <div className="mt-3 text-primary-foreground small">
+            <div className="mt-3 small" style={{ color: "var(--bs-light)" }}>
               © 2025 Wrocławski Hufiec Harcerzy "Starodrzew". Wszystkie prawa zastrzeżone.
             </div>
           </Col>

@@ -3,9 +3,7 @@ import { Calendar, MapPin, Users, Trophy } from "lucide-react";
 
 export default function HeroSection() {
   return (
-    <section id="home" className="py-5" style={{
-      background: "linear-gradient(135deg, rgba(13,115,55,0.05) 0%, rgba(0,123,255,0.10) 100%)"
-    }}>
+    <section id="home" className="py-5">
       <Container>
         <div className="text-center mb-5">
           <h2 className="fw-bold mb-3" style={{ fontSize: "2.5rem", color: "#0d7337" }}>
