@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Container, Navbar, Nav } from "react-bootstrap";
 import {
   Trophy,
@@ -9,6 +10,8 @@ import {
 import { Link, useLocation } from "react-router-dom";
 
 function HeaderNav() {
+  const [expanded, setExpanded] = useState(false);
+
   const navItems = [
     { name: "Strona główna", icon: Trophy, to: "/" },
     { name: "Aktualne wyniki", icon: BarChart3, to: "/wyniki" },
@@ -25,6 +28,8 @@ function HeaderNav() {
       className="shadow-lg py-3"
       style={{ backgroundColor: "#0d7337" }}
       fixed="top"
+      expanded={expanded}
+      onToggle={setExpanded}
     >
       <Container>
         <Navbar.Brand className="d-flex align-items-center gap-2">
@@ -41,6 +46,7 @@ function HeaderNav() {
                 key={item.name}
                 className={`d-flex align-items-center gap-2${location.pathname === item.to ? " active" : ""}`}
                 style={{ color: "var(--bs-light)" }}
+                onClick={() => setExpanded(false)}
               >
                 <item.icon size={18} />
                 {item.name}

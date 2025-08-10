@@ -3,6 +3,7 @@ import HeaderNav from "./components/HeaderNav";
 import MainPage from "./components/pages/MainPage";
 import NewsSection from "./components/pages/NewsPagev2";
 import Footer from "./components/pages/Footer";
+import ResultsTable from "./components/pages/ResultsPage";
 
 function NotFound() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Outlet />}>
             <Route index element={<MainPage />} />
+            <Route path="wyniki" element={<ResultsTable />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
