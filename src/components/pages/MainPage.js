@@ -6,7 +6,6 @@ function MainPage() {
     return (
       <div
         style={{
-          marginTop: "4rem",
           minHeight: "100vh",
           background: "#f8f9fa" 
         }}

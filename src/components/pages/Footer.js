@@ -3,7 +3,14 @@ import { Container, Row, Col } from "react-bootstrap";
 
 export default function Footer() {
   return (
-    <footer style={{ backgroundColor: "#0d7337" }} className="text-primary-foreground py-4">
+    <footer
+      style={{
+        backgroundColor: "#0d7337",
+        color: "var(--bs-light)",
+        width: "100%",
+      }}
+      className="text-primary-foreground py-4"
+    >
       <Container>
         <Row className="justify-content-center">
           <Col xs="auto" className="text-center">

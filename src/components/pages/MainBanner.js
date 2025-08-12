@@ -4,7 +4,7 @@ import { Calendar, MapPin, Users, Trophy } from "lucide-react";
 export default function HeroSection() {
   return (
     <section id="home" className="py-5">
-      <Container>
+      <Container style={{ paddingTop: "4rem" }}>
         <div className="text-center mb-5">
           <h2 className="fw-bold mb-3" style={{ fontSize: "2.5rem", color: "#0d7337" }}>
             Harcerska Liga Mistrzów
