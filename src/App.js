@@ -6,6 +6,7 @@ import NewsSection from "./components/pages/NewsPagev2";
 import Footer from "./components/pages/Footer";
 import ResultsTable from "./components/pages/ResultsPage";
 import RegulationsPage from "./components/pages/RegulationsPage";
+import NewsDetailPage from "./components/pages/NewsDetailPage";
 
 function NotFound() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route index element={<MainPage />} />
             <Route path="wyniki" element={<ResultsTable />} />
             <Route path="regulamin" element={<RegulationsPage />} />
+            <Route path="aktualnosci/:id" element={<NewsDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

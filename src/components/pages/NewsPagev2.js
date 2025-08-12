@@ -1,4 +1,5 @@
 import { useState, useEffect} from "react";
+import { Link } from "react-router-dom";
 import { Card, Button, Badge, Row, Col, Container, Pagination } from "react-bootstrap";
 import { Calendar, User, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -51,7 +52,8 @@ export default function NewsSection() {
         <Row xs={1} md={2} className="g-4 mb-4">
   {currentNews.map((news) => (
     <Col key={news.id}>
-      <Card className="h-100 shadow-sm" style={{ display: "flex", flexDirection: "column", minHeight: 460, maxHeight: 700 }}>
+      <Card className="h-100 shadow-sm" style={{ display: "flex", flexDirection: "column" }}>
+      <Link to={`/aktualnosci/${news.id}`} style={{ textDecoration: "none", color: "inherit" }}>
         <div style={{ position: "relative", overflow: "hidden", aspectRatio: "16/9" }}>
           <Card.Img
             src={news.image?.[0]?.downloadURL || "https://via.placeholder.com/600x400?text=Brak+zdjęcia"}
@@ -94,7 +96,8 @@ export default function NewsSection() {
             </div>
           </div>
         </Card.Body>
-      </Card>
+      </Link>
+    </Card>
     </Col>
   ))}
 </Row>
