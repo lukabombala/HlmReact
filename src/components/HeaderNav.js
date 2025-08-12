@@ -17,6 +17,7 @@ function HeaderNav() {
     { name: "Aktualne wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
     { name: "Faza pucharowa", icon: Calendar, to: "/fazapucharowa" },
+    { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
 
   const location = useLocation();

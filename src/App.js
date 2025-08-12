@@ -4,6 +4,7 @@ import MainPage from "./components/pages/MainPage";
 import NewsSection from "./components/pages/NewsPagev2";
 import Footer from "./components/pages/Footer";
 import ResultsTable from "./components/pages/ResultsPage";
+import RegulationsPage from "./components/pages/RegulationsPage";
 
 function NotFound() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/" element={<Outlet />}>
             <Route index element={<MainPage />} />
             <Route path="wyniki" element={<ResultsTable />} />
+            <Route path="regulamin" element={<RegulationsPage />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
