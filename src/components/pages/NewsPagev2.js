@@ -40,6 +40,12 @@ export default function NewsSection() {
     });
   };
 
+  function stripHtml(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
+  }
+
   return (
     <section id="news" className="py-5" style={{ background: "#f8f9fa" }}>
       <Container>
@@ -50,7 +56,7 @@ export default function NewsSection() {
           </p>
         </div>
         <Row xs={1} md={2} className="g-4 mb-4">
-  {currentNews.map((news) => (
+      {currentNews.map((news) => (
     <Col key={news.id}>
       <Card className="h-100 shadow-sm" style={{ display: "flex", flexDirection: "column" }}>
       <Link to={`/aktualnosci/${news.id}`} style={{ textDecoration: "none", color: "inherit" }}>
@@ -69,11 +75,7 @@ export default function NewsSection() {
             {news.title}
           </Card.Title>
           <Card.Text className="mb-3 text-muted" style={{ minHeight: 115, maxHeight: 140, overflow: "hidden", textOverflow: "ellipsis" }}>
-            <div dangerouslySetInnerHTML={{
-              __html: news.content && news.content.length > 215
-                ? news.content.slice(0, 215) + "..."
-                : news.content
-            }} />
+            {stripHtml(news.content).slice(0, 200)}...
           </Card.Text>
           <div
             style={{

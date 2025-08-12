@@ -47,11 +47,7 @@ export default function NewsDetailPage() {
   }
 
   return (
-    <Container className="py-5" style={{ maxWidth: 800 }}>
-      <Button as={Link} to="/" variant="outline-primary" className="mb-4">
-        <ChevronLeft size={18} className="me-1" />
-        Powrót do aktualności
-      </Button>
+    <Container className="py-5" style={{ maxWidth: 800 , marginTop: "6rem"}}>
       <Card className="shadow">
         <div style={{ width: "100%", height: 320, overflow: "hidden", position: "relative" }}>
           <Card.Img
@@ -88,6 +84,12 @@ export default function NewsDetailPage() {
           </div>
         </Card.Body>
       </Card>
+      <div className="d-flex justify-content-center" style={{ marginTop: "2rem" }}>
+        <Button as={Link} to="/" variant="outline-primary">
+          <ChevronLeft size={18} className="me-1" />
+          Powrót do aktualności
+        </Button>
+      </div>
     </Container>
   );
 }
