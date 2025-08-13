@@ -64,16 +64,13 @@ export default function ResultsTable() {
 
   return (
     <section id="results" className="py-5" style={{
-          marginTop: "4rem",
+          marginTop: "5rem",
           minHeight: "80vh",
           background: "#f8f9fa" 
         }}>
       <Container>
         <div className="text-center mb-5">
           <h2 className="fw-bold mb-3" style={{ fontSize: "2rem" }}>Aktualna punktacja</h2>
-          <p className="text-muted">
-            Tabela wyników wszystkich zastępów w Harcerskiej Lidze Mistrzów
-          </p>
         </div>
 
         {/* Podium - Top 3 */}
@@ -85,16 +82,35 @@ export default function ResultsTable() {
                 style={getPodiumCardStyle(team.position)}
               >
                 <Card.Body>
-                  <div className="mb-3">
-                    {team.position === 1 && <Trophy size={48} style={{ color: "#eab308" }} />}
-                    {team.position === 2 && <Medal size={48} style={{ color: "#a3a3a3" }} />}
-                    {team.position === 3 && <Award size={48} style={{ color: "#f59e42" }} />}
+                  {/* Desktop layout */}
+                  <div className="d-none d-md-flex justify-content-between align-items-center mb-2">
+                    <div className="text-start" style={{ flex: 1 }}>
+                      <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{team.name}</div>
+                      <div className="text-muted small">{team.team}</div>
+                    </div>
+                    <Badge bg="primary" className="px-3 py-2 ms-2" style={{ fontSize: "1.1rem" }}>
+                      {team.points} pkt
+                    </Badge>
+                    <div className="ms-2">
+                      {team.position === 1 && <Trophy size={28} style={{ color: "#eab308" }} />}
+                      {team.position === 2 && <Medal size={28} style={{ color: "#a3a3a3" }} />}
+                      {team.position === 3 && <Award size={28} style={{ color: "#f59e42" }} />}
+                    </div>
                   </div>
-                  <h3 className="fw-bold mb-1">{team.name}</h3>
-                  <p className="text-muted small mb-3">{team.team}</p>
-                  <div className="d-flex justify-content-center align-items-center gap-3">
-                    <Badge bg="primary" className="px-3 py-1">{team.points} pkt</Badge>
-                    <span className="fs-5 fw-bold text-primary">#{team.position}</span>
+                  {/* Mobile layout */}
+                  <div className="d-flex d-md-none justify-content-center align-items-center mb-2" style={{ gap: "1.5rem" }}>
+                    <div>
+                      <div className="fw-bold" style={{ fontSize: "1rem" }}>{team.name}</div>
+                      <div className="text-muted small">{team.team}</div>
+                    </div>
+                    <Badge bg="primary" className="px-2 py-1" style={{ fontSize: "1rem" }}>
+                      {team.points} pkt
+                    </Badge>
+                    <div>
+                      {team.position === 1 && <Trophy size={22} style={{ color: "#eab308" }} />}
+                      {team.position === 2 && <Medal size={22} style={{ color: "#a3a3a3" }} />}
+                      {team.position === 3 && <Award size={22} style={{ color: "#f59e42" }} />}
+                    </div>
                   </div>
                 </Card.Body>
               </Card>
@@ -105,7 +121,7 @@ export default function ResultsTable() {
         <Card className="mb-4">
           <Card.Header className="d-flex align-items-center gap-2">
             <Trophy size={20} className="me-2" />
-            <span className="fw-semibold">Tabela ligowa - sezon 2025</span>
+            <span className="fw-semibold">Tabela punktacji - sezon 2025/2026</span>
           </Card.Header>
           <Card.Body>
             <div style={{ overflowX: "auto" }}>
