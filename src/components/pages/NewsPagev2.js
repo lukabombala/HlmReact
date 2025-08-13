@@ -54,10 +54,7 @@ export default function NewsSection() {
     <section id="news" className="py-5" style={{ background: "#f8f9fa" }}>
       <Container>
         <div className="text-center mb-4">
-          <h2 className="fw-bold mb-2">Aktualności</h2>
-          <p className="text-muted">
-            Najnowsze wiadomości z Harcerskiej Ligi Mistrzów
-          </p>
+          <h2 className="fw-bold mb-2" >Aktualności</h2>
         </div>
         <Row xs={1} md={2} className="g-4 mb-4">
       {currentNews.map((news) => (
