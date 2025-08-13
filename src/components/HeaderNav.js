@@ -33,7 +33,12 @@ function HeaderNav() {
       onToggle={setExpanded}
     >
       <Container>
-        <Navbar.Brand className="d-flex align-items-center gap-2">
+        <Navbar.Brand
+          as={Link}
+          to="/"
+          className="d-flex align-items-center gap-2"
+          style={{ cursor: "pointer" }}
+        >
           <Trophy size={32} className="me-2" />
           <span className="fs-4 fw-bold">Harcerska Liga Mistrzów</span>
         </Navbar.Brand>

@@ -7,11 +7,13 @@ function MainPage() {
       <div
         style={{
           minHeight: "100vh",
-          background: "#f8f9fa" 
+          background: "#f8f9fa"
         }}
       >
         <MainBanner />
-        <NewsSection />
+        <div style={{ marginTop: "0" }}>
+          <NewsSection />
+        </div>
       </div>
     )
 }
