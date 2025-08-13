@@ -17,14 +17,18 @@ export default function NewsDetailPage() {
     });
   }, [id]);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pl-PL', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  const formatDate = (dateObj) => {
+  if (!dateObj) return "";
+  // Firestore Timestamp
+  if (typeof dateObj === "object" && typeof dateObj.seconds === "number") {
+    const date = new Date(dateObj.seconds * 1000);
+    return date.toLocaleDateString("pl-PL", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+      });
+    }
+  }
 
   if (loading) {
     return (
