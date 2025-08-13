@@ -31,19 +31,23 @@ export default function NewsSection() {
   const prevPage = () => setCurrentPage((prev) => Math.max(prev - 1, 0));
   const goToPage = (page) => setCurrentPage(page);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pl-PL', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+  const formatDate = (dateObj) => {
+  if (!dateObj) return "";
+  // Firestore Timestamp
+  if (typeof dateObj === "object" && typeof dateObj.seconds === "number") {
+    const date = new Date(dateObj.seconds * 1000);
+    return date.toLocaleDateString("pl-PL", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+      });
+    }
   };
 
   function stripHtml(html) {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return div.textContent || div.innerText || "";
+    const div = document.createElement("div");
+    div.innerHTML = html;
+    return div.textContent || div.innerText || "";
   }
 
   return (
