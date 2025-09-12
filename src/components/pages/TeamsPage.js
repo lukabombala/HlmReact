@@ -1,8 +1,9 @@
 import { Card, Badge, Container, Row, Col, Spinner, Accordion } from "react-bootstrap";
 import { Users, MapPin } from "lucide-react";
 import { useState, useEffect } from 'react';
+import { Link } from "react-router-dom";
 
-import { Info } from "lucide-react"; // dodaj do importów ikon
+import { Info } from "lucide-react"; 
 
 import { jednostkiListAll } from '../../services/jednostkiList.mjs';
 import { zastepyListAll } from '../../services/zastepyList.mjs';
@@ -105,13 +106,25 @@ export default function TeamsSection() {
                     <Row className="gy-3">
                       {troopsByTeam[team.id].map((troop, index) => (
                         <Col key={index} sm={6} lg={4}>
-                          <div className="border rounded p-3 bg-white h-100">
+                          <Link
+                          to={`/zastepy/${troop.id}`}
+                          style={{ textDecoration: "none", color: "inherit" }}
+                          className="zastep-link"
+                        >
+                          <div
+                            className="border rounded p-3 bg-white h-100"
+                            style={{
+                              transition: "box-shadow 0.2s, border-color 0.2s",
+                              cursor: "pointer"
+                            }}
+                          >
                             <h6 className="fw-medium mb-2">{troop.fullName}</h6>
                             <div className="d-flex align-items-center gap-1 small">
                               <Users size={14} />
                               <span>{troop.harcerze.length} harcerzy</span>
                             </div>
                           </div>
+                        </Link>
                         </Col>
                       ))}
                     </Row>
@@ -138,13 +151,13 @@ export default function TeamsSection() {
               <p className="fs-3 fw-bold text-primary">
                 {Object.values(troopsByTeam).reduce((acc, arr) => acc + arr.length, 0)}
               </p>
-              <p className="small text-muted">Zastępów w turnieju</p>
+              <p className="small text-muted">Zastępów</p>
             </Col>
             <Col md={4}>
               <p className="fs-3 fw-bold text-primary">
                 {Object.values(troopsByTeam).reduce((acc, arr) => acc + arr.reduce((sum, troop) => sum + troop.harcerze.length, 0), 0)}
               </p>
-              <p className="small text-muted">Harcerzy i harcerek</p>
+              <p className="small text-muted">harcerzy</p>
             </Col>
           </Row>
         </div>

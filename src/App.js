@@ -8,6 +8,7 @@ import ResultsTable from "./components/pages/ResultsPage";
 import RegulationsPage from "./components/pages/RegulationsPage";
 import NewsDetailPage from "./components/pages/NewsDetailPage";
 import TeamsPage from  "./components/pages/TeamsPage";
+import ZastepDetailPage from "./components/pages/ZastepDetailPage";
 
 function NotFound() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="regulamin" element={<RegulationsPage />} />
             <Route path="aktualnosci/:id" element={<NewsDetailPage />} />
             <Route path="zastepy" element={<TeamsPage />} />
+            <Route path="zastepy/:id" element={<ZastepDetailPage />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

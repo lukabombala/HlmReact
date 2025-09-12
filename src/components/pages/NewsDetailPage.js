@@ -19,7 +19,7 @@ export default function NewsDetailPage() {
 
   const formatDate = (dateObj) => {
   if (!dateObj) return "";
-  // Firestore Timestamp
+  // Firestore Timestampd
   if (typeof dateObj === "object" && typeof dateObj.seconds === "number") {
     const date = new Date(dateObj.seconds * 1000);
     return date.toLocaleDateString("pl-PL", {

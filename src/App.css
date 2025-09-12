@@ -17,3 +17,11 @@ body, #root {
   min-height: 0;
   padding-top: 72px; /* wysokość navbaru */
 }
+
+.zastep-link:hover,
+.zastep-link:focus {
+  border-color: #0d7337 !important;
+  box-shadow: 0 0 0 0.12rem rgba(13,115,55,0.12);
+  background: #f3f7f4;
+  text-decoration: none;
+}
