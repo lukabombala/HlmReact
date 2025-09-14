@@ -1,26 +1,42 @@
-import { useState } from "react";
-import { Container, Navbar, Nav } from "react-bootstrap";
+import { useState, useEffect } from "react";
+import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
 import {
   Trophy,
   Users,
   Calendar,
   BarChart3,
   Newspaper,
+  User,
+  LogIn,
+  LogOut,
+  Shield
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { configAll } from "../services/configList.mjs";
 
-function HeaderNav() {
+function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
   const [expanded, setExpanded] = useState(false);
+  const [showCup, setShowCup] = useState(false);
+
+  const [showLogin, setShowLogin] = useState(false);
+
+  useEffect(() => {
+    configAll().then(configs => {
+      const cupConfig = configs.find(c => c.id === "zzzzzzzzzzzzzzzzzzzy");
+      setShowCup(!!(cupConfig && cupConfig.settingsToggle === true));
+    });
+  }, []);
 
   const navItems = [
     { name: "Aktualności", icon: Calendar, to: "/" },
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
-    { name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" },
+    ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <Navbar
@@ -68,9 +84,80 @@ function HeaderNav() {
                 </Nav.Link>
               );
             })}
+            {/* Prawy górny róg: logowanie / panel drużynowego */}
+            <div className="ms-3 d-flex align-items-center">
+              {!isLoggedIn ? (
+                <Button
+                  variant="outline-light"
+                  size="sm"
+                  className="d-flex align-items-center gap-1"
+                  style={{ fontWeight: 500 }}
+                  onClick={() => setShowLogin(true)} // tylko otwiera modal!
+                >
+                  <LogIn size={16} className="me-1" />
+                  Zaloguj się
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    as={Link}
+                    to="/panel"
+                    variant="outline-light"
+                    size="sm"
+                    className="d-flex align-items-center gap-1 px-2"
+                    style={{ fontWeight: 500 }}
+                  >
+                    <Shield size={16} className="me-1" />
+                    Panel drużynowego
+                  </Button>
+                  <Button
+                    variant="outline-light"
+                    size="sm"
+                    className="d-flex align-items-center gap-1 ms-2"
+                    style={{ fontWeight: 500 }}
+                    onClick={() => {
+                      setIsLoggedIn(false);
+                      navigate("/");
+                    }}
+                  >
+                    <LogOut size={16} className="me-1" />
+                    Wyloguj się
+                  </Button>
+                </>
+              )}
+            </div>
           </Nav>
         </Navbar.Collapse>
       </Container>
+      {/* Modal logowania */}
+      <Modal show={showLogin} onHide={() => setShowLogin(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Logowanie</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Adres e-mail</Form.Label>
+              <Form.Control type="email" placeholder="Wpisz e-mail" autoFocus />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Hasło</Form.Label>
+              <Form.Control type="password" placeholder="Wpisz hasło" />
+            </Form.Group>
+            <Button
+              variant="success"
+              className="w-100"
+              onClick={() => {
+                setIsLoggedIn(true);
+                setShowLogin(false);
+                navigate("/panel");
+              }}
+            >
+              Zaloguj się
+            </Button>
+          </Form>
+        </Modal.Body>
+      </Modal>
     </Navbar>
   );
 }

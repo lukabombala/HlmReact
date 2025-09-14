@@ -1,25 +1,61 @@
-import { Card, Row, Col, Table, Badge, Container } from "react-bootstrap";
+import { useEffect, useState } from "react";
+import { Card, Row, Col, Table, Badge, Container, Spinner } from "react-bootstrap";
 import { Trophy, Medal, Award } from "lucide-react";
+import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 
 export default function ResultsTable() {
-  const results = [
-    { position: 1, name: "Zastęp Orłów", team: '1. DH "Orlęta" Warszawa', points: 21, gap: 0 },
-    { position: 2, name: "Zastęp Żubrów", team: '2. DH "Żubry" Gdańsk', points: 18, gap: 3 },
-    { position: 3, name: "Zastęp Bobrów", team: '5. DH "Bobry" Poznań', points: 15, gap: 6 },
-    { position: 4, name: "Zastęp Szarych Wilków", team: '3. DH "Wilki" Kraków', points: 12, gap: 9 },
-    { position: 5, name: "Zastęp Bocianów", team: '4. DH "Ptaki" Olsztyn', points: 9, gap: 12 },
-    { position: 6, name: "Zastęp Rysi", team: '7. DH "Rysie" Wrocław', points: 6, gap: 15 },
-    { position: 7, name: "Zastęp Lwów", team: '6. DH "Lwy" Katowice', points: 6, gap: 15 },
-    { position: 8, name: "Zastęp Sokołów", team: '1. DH "Orlęta" Warszawa', points: 5, gap: 16 },
-    { position: 9, name: "Zastęp Bizonów", team: '2. DH "Żubry" Gdańsk', points: 4, gap: 17 },
-    { position: 10, name: "Zastęp Wydry", team: '5. DH "Bobry" Poznań', points: 4, gap: 17 },
-    { position: 11, name: "Zastęp Leśnych Wilków", team: '3. DH "Wilki" Kraków', points: 3, gap: 18 },
-    { position: 12, name: "Zastęp Żurawi", team: '4. DH "Ptaki" Olsztyn', points: 3, gap: 18 },
-    { position: 13, name: "Zastęp Pum", team: '7. DH "Rysie" Wrocław', points: 2, gap: 19 },
-    { position: 14, name: "Zastęp Tygrysów", team: '6. DH "Lwy" Katowice', points: 2, gap: 19 },
-    { position: 15, name: "Zastęp Panter", team: '6. DH "Lwy" Katowice', points: 1, gap: 20 },
-    { position: 16, name: "Zastęp Gepardów", team: '6. DH "Lwy" Katowice', points: 0, gap: 21 },
-  ];
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [res, setRes] = useState([]);
+  const fetchData = async () => {
+      setLoading(true);
+  
+      const res = await punktacjaListAll();
+      setRes(res);
+      setLoading(false);
+  }
+
+  useEffect(() => {
+      fetchData();
+    }, []);
+
+  useEffect(() => {
+    punktacjaListAll().then((data) => {
+      // Grupowanie punktów po zastępie (scoreTeam.id)
+      const scoresByZastep = {};
+      data.forEach((entry) => {
+        if (
+          entry.scoreTeam &&
+          Array.isArray(entry.scoreTeam) &&
+          entry.scoreTeam[0] &&
+          entry.scoreTeam[0].id
+        ) {
+          const zastepId = entry.scoreTeam[0].id;
+          if (!scoresByZastep[zastepId]) {
+            scoresByZastep[zastepId] = {
+              id: zastepId,
+              name: entry.scoreTeam[0].snapshot.fullName,
+              team: entry.scoreTeam[0].snapshot.jednostka?.[0]?.snapshot.shortName || "",
+              points: 0
+            };
+          }
+          scoresByZastep[zastepId].points += entry.scoreValue;
+        }
+      });
+
+      // Zamiana na tablicę i sortowanie malejąco po punktach
+      const resultsArr = Object.values(scoresByZastep)
+        .sort((a, b) => b.points - a.points)
+        .map((z, idx, arr) => ({
+          ...z,
+          position: idx + 1,
+          gap: idx === 0 ? 0 : arr[0].points - z.points
+        }));
+
+      setResults(resultsArr);
+      setLoading(false);
+    });
+  }, []);
 
   const topThree = results.slice(0, 3);
 
@@ -62,6 +98,14 @@ export default function ResultsTable() {
     }
   };
 
+  if (loading) {
+    return (
+      <Container className="py-5 text-center">
+        <Spinner animation="border" />
+      </Container>
+    );
+  }
+
   return (
     <section id="results" className="py-5" style={{
           marginTop: "5rem",
@@ -69,6 +113,8 @@ export default function ResultsTable() {
           background: "#f8f9fa" 
         }}>
       <Container>
+
+        {console.log(res)}
         <div className="text-center mb-5">
           <h2 className="fw-bold mb-3" style={{ fontSize: "2rem" }}>Aktualna punktacja</h2>
         </div>
@@ -156,22 +202,6 @@ export default function ResultsTable() {
                   ))}
                 </tbody>
               </Table>
-            </div>
-            <div className="mt-4 small text-muted">
-              <div className="d-flex flex-wrap gap-4">
-                <span className="d-flex align-items-center gap-1">
-                  <Trophy size={14} style={{ color: "#eab308" }} />
-                  Lider
-                </span>
-                <span className="d-flex align-items-center gap-1">
-                  <Medal size={14} style={{ color: "#a3a3a3" }} />
-                  2. miejsce
-                </span>
-                <span className="d-flex align-items-center gap-1">
-                  <Award size={14} style={{ color: "#f59e42" }} />
-                  3. miejsce
-                </span>
-              </div>
             </div>
           </Card.Body>
         </Card>
