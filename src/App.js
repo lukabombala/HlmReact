@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Route, Routes, Outlet } from "react-router-dom";
-import { useState } from "react";
 import HeaderNav from "./components/HeaderNav";
 import MainPage from "./components/pages/MainPage";
 import NewsSection from "./components/pages/NewsPagev2";
@@ -10,6 +9,8 @@ import NewsDetailPage from "./components/pages/NewsDetailPage";
 import TeamsPage from  "./components/pages/TeamsPage";
 import ZastepDetailPage from "./components/pages/ZastepDetailPage";
 import PanelPage from "./components/pages/PanelPage";
+import { AuthProvider } from "./AuthContext";
+import ProtectedRoute from "./ProtectedRoute";
 
 function NotFound() {
   return (
@@ -21,30 +22,33 @@ function NotFound() {
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   return (
-    <Router>
-      <HeaderNav isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
-      <div className="main-content">
-        <Routes>
-          <Route path="/" element={<Outlet />}>
-            <Route index element={<MainPage />} />
-            <Route path="wyniki" element={<ResultsTable />} />
-            <Route path="regulamin" element={<RegulationsPage />} />
-            <Route path="aktualnosci/:id" element={<NewsDetailPage />} />
-            <Route path="zastepy" element={<TeamsPage />} />
-            <Route path="zastepy/:id" element={<ZastepDetailPage />} />
-            <Route path="*" element={<NotFound />} />
-            <Route
-            path="/panel"
-            element={
-              isLoggedIn ? <PanelPage /> : <NotFound />
-            }
-          />
-          </Route>
-        </Routes>
-      </div>
-      <Footer />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <HeaderNav />
+        <div className="main-content">
+          <Routes>
+            <Route path="/" element={<Outlet />}>
+              <Route index element={<MainPage />} />
+              <Route path="wyniki" element={<ResultsTable />} />
+              <Route path="regulamin" element={<RegulationsPage />} />
+              <Route path="aktualnosci/:id" element={<NewsDetailPage />} />
+              <Route path="zastepy" element={<TeamsPage />} />
+              <Route path="zastepy/:id" element={<ZastepDetailPage />} />
+              <Route
+                path="panel"
+                element={
+                  <ProtectedRoute>
+                    <PanelPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </div>
+        <Footer />
+      </Router>
+    </AuthProvider>
   );
 }

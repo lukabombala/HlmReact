@@ -1,24 +1,27 @@
 import { useState, useEffect } from "react";
-import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Modal } from "react-bootstrap";
 import {
   Trophy,
   Users,
   Calendar,
   BarChart3,
   Newspaper,
-  User,
+  Shield,
   LogIn,
-  LogOut,
-  Shield
+  LogOut
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
+import { useAuth } from "../AuthContext";
 
-function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
+function HeaderNav() {
   const [expanded, setExpanded] = useState(false);
   const [showCup, setShowCup] = useState(false);
-
   const [showLogin, setShowLogin] = useState(false);
+
+  const { user, loginWithGoogle, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     configAll().then(configs => {
@@ -34,9 +37,6 @@ function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
     ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
-
-  const location = useLocation();
-  const navigate = useNavigate();
 
   return (
     <Navbar
@@ -84,15 +84,14 @@ function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
                 </Nav.Link>
               );
             })}
-            {/* Prawy górny róg: logowanie / panel drużynowego */}
             <div className="ms-3 d-flex align-items-center">
-              {!isLoggedIn ? (
+              {!user ? (
                 <Button
                   variant="outline-light"
                   size="sm"
                   className="d-flex align-items-center gap-1"
                   style={{ fontWeight: 500 }}
-                  onClick={() => setShowLogin(true)} // tylko otwiera modal!
+                  onClick={() => setShowLogin(true)}
                 >
                   <LogIn size={16} className="me-1" />
                   Zaloguj się
@@ -115,8 +114,8 @@ function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
                     size="sm"
                     className="d-flex align-items-center gap-1 ms-2"
                     style={{ fontWeight: 500 }}
-                    onClick={() => {
-                      setIsLoggedIn(false);
+                    onClick={async () => {
+                      await logout();
                       navigate("/");
                     }}
                   >
@@ -131,33 +130,31 @@ function HeaderNav({ isLoggedIn, setIsLoggedIn }) {
       </Container>
       {/* Modal logowania */}
       <Modal show={showLogin} onHide={() => setShowLogin(false)} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Logowanie</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Adres e-mail</Form.Label>
-              <Form.Control type="email" placeholder="Wpisz e-mail" autoFocus />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Hasło</Form.Label>
-              <Form.Control type="password" placeholder="Wpisz hasło" />
-            </Form.Group>
-            <Button
-              variant="success"
-              className="w-100"
-              onClick={() => {
-                setIsLoggedIn(true);
-                setShowLogin(false);
-                navigate("/panel");
-              }}
-            >
-              Zaloguj się
-            </Button>
-          </Form>
-        </Modal.Body>
-      </Modal>
+      <Modal.Header closeButton>
+        <Modal.Title>Logowanie</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Button
+          variant="success"
+          className="w-100"
+          onClick={async () => {
+            try {
+              await loginWithGoogle();
+              setShowLogin(false);
+              navigate("/panel");
+            } catch (error) {
+              // Obsłuż tylko, jeśli to nie jest zamknięcie popupu
+              if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
+                alert("Błąd logowania: " + error.message);
+              }
+              setShowLogin(false);
+            }
+          }}
+        >
+          Zaloguj się przez konto @zhr.pl
+        </Button>
+      </Modal.Body>
+    </Modal>
     </Navbar>
   );
 }
