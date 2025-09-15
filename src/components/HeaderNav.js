@@ -100,6 +100,7 @@ function HeaderNav() {
                 <>
                   <Button
                     as={Link}
+                    onClick={() => setExpanded(false)}
                     to="/panel"
                     variant="outline-light"
                     size="sm"
