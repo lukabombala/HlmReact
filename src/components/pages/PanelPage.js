@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from "react";
+import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination,
 } from "react-bootstrap";
-import { Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2 } from "lucide-react";
+import { Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -34,6 +34,24 @@ export default function PanelPage() {
   const [editRequest, setEditRequest] = useState("");
   const [editSent, setEditSent] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showScoutInfoModal, setShowScoutInfoModal] = useState(false);
+  const [scoutInfoData, setScoutInfoData] = useState(null);
+  const [showCatDesc, setShowCatDesc] = useState(false);
+  const [catDescHtml, setCatDescHtml] = useState("");
+  const [catDescTitle, setCatDescTitle] = useState("");
+  const [showEditEntryModal, setShowEditEntryModal] = useState(false);
+  const [editEntryData, setEditEntryData] = useState(null);
+  const [editEntrySuccess, setEditEntrySuccess] = useState(false);
+  const [showDeleteEntryModal, setShowDeleteEntryModal] = useState(false);
+  const [deleteEntryData, setDeleteEntryData] = useState(null);
+  const [deleteEntrySuccess, setDeleteEntrySuccess] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesHtml, setNotesHtml] = useState("");
+  const [notesTitle, setNotesTitle] = useState("");
+
+  // Responsive helpers
+  const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
+  const isDesktopWide = typeof window !== "undefined" ? window.innerWidth >= 992 : false;
 
   // Firestore data
   const [teams, setTeams] = useState([]);
@@ -54,20 +72,6 @@ export default function PanelPage() {
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyDateFrom, setHistoryDateFrom] = useState("");
   const [historyDateTo, setHistoryDateTo] = useState("");
-
-  // Modal z opisem kategorii
-  const [showCatDesc, setShowCatDesc] = useState(false);
-  const [catDescHtml, setCatDescHtml] = useState("");
-  const [catDescTitle, setCatDescTitle] = useState("");
-
-  // Modale edycji/usuwania wpisu
-  const [showEditEntryModal, setShowEditEntryModal] = useState(false);
-  const [editEntryData, setEditEntryData] = useState(null);
-  const [editEntrySuccess, setEditEntrySuccess] = useState(false);
-
-  const [showDeleteEntryModal, setShowDeleteEntryModal] = useState(false);
-  const [deleteEntryData, setDeleteEntryData] = useState(null);
-  const [deleteEntrySuccess, setDeleteEntrySuccess] = useState(false);
 
   // Pobierz drużyny z Firestore
   useEffect(() => {
@@ -103,13 +107,13 @@ export default function PanelPage() {
   }
 
   function handleEditSubmit(e) {
-  e.preventDefault();
-  setEditSent(true);
+    e.preventDefault();
+    setEditSent(true);
   }
 
   function handleOpenAddModal(scoutId) {
-  setAddScoutId(scoutId);
-  setShowAddModal(true);
+    setAddScoutId(scoutId);
+    setShowAddModal(true);
   }
 
   // Wybrane dane drużyny
@@ -246,7 +250,6 @@ export default function PanelPage() {
     setHistoryCurrentPage(1);
   }, [historyScout, historyCat, historyMonth, historyRowsPerPage, historyDateFrom, historyDateTo]);
 
-  // Multi-select helpers
   function handleMultiSelectChange(setter, values, allValue) {
     const arr = Array.from(values, option => option.value);
     if (arr.includes(allValue)) {
@@ -264,7 +267,6 @@ export default function PanelPage() {
     setHistoryDateTo("");
   }
 
-  // Format daty
   function formatDate(dateStr) {
     if (!dateStr) return "";
     if (typeof dateStr === "string") {
@@ -280,7 +282,6 @@ export default function PanelPage() {
     return "";
   }
 
-  // Modal: Edycja wpisu
   function openEditEntryModal(entry) {
     setEditEntryData(entry);
     setEditEntrySuccess(false);
@@ -294,10 +295,8 @@ export default function PanelPage() {
   function handleEditEntrySubmit(e) {
     e.preventDefault();
     setEditEntrySuccess(true);
-    // Tu można dodać obsługę zapisu do bazy
   }
 
-  // Modal: Usuwanie wpisu
   function openDeleteEntryModal(entry) {
     setDeleteEntryData(entry);
     setDeleteEntrySuccess(false);
@@ -310,11 +309,27 @@ export default function PanelPage() {
   }
   function handleDeleteEntryConfirm() {
     setDeleteEntrySuccess(true);
-    // Tu można dodać obsługę usuwania z bazy
   }
 
-  // Responsive: show sidebar on md+, top nav on sm-
-  const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
+  const allZastepyRanking = useMemo(() => {
+  // Zlicz sumę punktów dla każdego zastępu ze wszystkich drużyn
+  const zastepPoints = zastepy.map(z => {
+    const zPunktacje = punktacje.filter(
+      (p) => p.scoreTeam && p.scoreTeam[0]?.id === z.id
+    );
+    return {
+      id: z.id,
+      points: zPunktacje.reduce((sum, p) => sum + (p.scoreValue || 0), 0),
+    };
+    });
+    // Posortuj malejąco po punktach
+    zastepPoints.sort((a, b) => b.points - a.points);
+    // Nadaj pozycje w rankingu
+    return zastepPoints.map((z, idx) => ({
+      ...z,
+      position: idx + 1,
+    }));
+  }, [zastepy, punktacje]);
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8f9fa" }}>
@@ -463,25 +478,25 @@ export default function PanelPage() {
                       </Button>
                     </Card.Header>
                     <Card.Body>
-                      <Row>
-                        <Col md={3} className="text-center mb-3 mb-md-0">
-                          <div className="fs-2 fw-bold text-primary">{teamScouts.length}</div>
-                          <div className="text-muted small">Zastępów</div>
-                        </Col>
-                        <Col md={3} className="text-center mb-3 mb-md-0">
-                          <div className="fs-2 fw-bold text-primary">{scoutsCount}</div>
-                          <div className="text-muted small">Liczba harcerzy</div>
-                        </Col>
-                        <Col md={3} className="text-center mb-3 mb-md-0">
-                          <div className="fs-2 fw-bold text-primary">{totalPoints}</div>
-                          <div className="text-muted small">Łączne punkty</div>
-                        </Col>
-                        <Col md={3} className="text-center">
-                          <div className="fs-2 fw-bold text-primary">{totalActivities}</div>
-                          <div className="text-muted small">Działań ogółem</div>
-                        </Col>
-                      </Row>
-                    </Card.Body>
+                    <Row>
+                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                        <div className="fs-2 fw-bold text-primary me-3">{teamScouts.length}</div>
+                        <div className="text-muted small">Zastępy</div>
+                      </Col>
+                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                        <div className="fs-2 fw-bold text-primary me-3">{scoutsCount}</div>
+                        <div className="text-muted small">Harcerzy</div>
+                      </Col>
+                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                        <div className="fs-2 fw-bold text-primary me-3">{totalPoints}</div>
+                        <div className="text-muted small">Łącznie punktów</div>
+                      </Col>
+                      <Col md={3} className="d-flex align-items-center justify-content-center">
+                        <div className="fs-2 fw-bold text-primary me-3">{totalActivities}</div>
+                        <div className="text-muted small">Wpisów ogółem</div>
+                      </Col>
+                    </Row>
+                  </Card.Body>
                   </Card>
 
                   {/* Modal edycji drużyny */}
@@ -527,40 +542,130 @@ export default function PanelPage() {
                     </Card.Header>
                     <Card.Body>
                       <Table bordered responsive>
-                        <thead>
+                      <thead>
                           <tr>
-                            <th>Zastęp</th>
-                            <th className="text-center">Punkty</th>
-                            <th className="text-center">Liczba wpisów</th>
-                            <th className="text-center">Data ostatniego wpisu</th>
-                            <th className="text-center">Akcje</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {teamScouts.map((scout) => (
-                            <tr key={scout.id}>
-                              <td className="fw-medium">{scout.name}</td>
-                              <td className="text-center">
-                                <Badge bg="primary">{scout.points}</Badge>
-                              </td>
-                              <td className="text-center">{scout.activities}</td>
-                              <td className="text-center text-muted small">
-                                {scout.last ? new Date(scout.last).toLocaleDateString("pl-PL") : "Brak wpisów"}
-                              </td>
-                              <td className="text-center">
+                          <th>Zastęp</th>
+                          <th className="text-center">Punkty</th>
+                          <th className="text-center">Aktualna pozycja</th>
+                          <th className="text-center">Data ostatniego wpisu</th>
+                          <th className="text-center">Akcje</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      {teamScouts.map((scout) => {
+                        const ranking = allZastepyRanking.find(z => z.id === scout.id);
+                        return (
+                          <tr key={scout.id} style={{ verticalAlign: "middle" }}>
+                            <td className="fw-medium text-center align-middle">{scout.name}</td>
+                            <td className="text-center align-middle">
+                              <Badge bg="primary">{scout.points}</Badge>
+                            </td>
+                            <td className="text-center align-middle">
+                              {ranking ? ranking.position : "-"}
+                            </td>
+                            <td className="text-center text-muted small align-middle">
+                              {scout.last
+                                ? (() => {
+                                    if (typeof scout.last === "object" && scout.last.seconds) {
+                                      return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
+                                    }
+                                    if (typeof scout.last === "string") {
+                                      return new Date(scout.last).toLocaleDateString("pl-PL");
+                                    }
+                                    return "Brak wpisów";
+                                  })()
+                                : "Brak wpisów"}
+                            </td>
+                            <td className="text-center align-middle">
+                              <div className={`d-flex gap-2 justify-content-center ${isMobile ? "flex-wrap" : ""}`}>
                                 <Button
                                   variant="outline-primary"
-                                  size="sm"
+                                  size={isMobile ? "sm" : "md"}
+                                  style={isMobile ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem" } : {}}
+                                  title="Dodaj punkty"
                                   onClick={() => handleOpenAddModal(scout.id)}
                                 >
-                                  <Plus size={16} className="me-1" />
-                                  Dodaj punkty
+                                  <Plus size={isMobile ? 14 : 16} className="me-1" />
+                                  {isMobile ? "Dodaj" : "Dodaj punkty"}
                                 </Button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </Table>
+                                <Button
+                                  variant="outline-secondary"
+                                  size={isMobile ? "sm" : "md"}
+                                  style={
+                                    isMobile
+                                      ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem", minWidth: "72px", justifyContent: "center" }
+                                      : {}
+                                  }
+                                  title="Informacje o zastępie"
+                                  onClick={() => {
+                                    const scoutData = zastepy.find(z => z.id === scout.id);
+                                    setScoutInfoData(scoutData);
+                                    setShowScoutInfoModal(true);
+                                  }}
+                                >
+                                  <Info size={isMobile ? 14 : 16} className="me-1" />
+                                  {isMobile ? <span style={{ opacity: 100 }}> Info</span> : "Dane zastępu"}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );})}
+                      </tbody>
+                    </Table>
+
+                    <Modal show={showScoutInfoModal} onHide={() => setShowScoutInfoModal(false)} centered>
+                      <Modal.Header closeButton>
+                        <Modal.Title>
+                          {scoutInfoData?.fullName || scoutInfoData?.name || "Informacje o zastępie"}
+                        </Modal.Title>
+                      </Modal.Header>
+                      <Modal.Body>
+                        {scoutInfoData ? (
+                          <>
+                            <div className="mb-2">
+                              <b>Nazwa:</b> {scoutInfoData.fullName || scoutInfoData.name}
+                            </div>
+                            {scoutInfoData.jednostka && scoutInfoData.jednostka[0]?.snapshot?.shortName && (
+                              <div className="mb-2">
+                                <b>Drużyna:</b> {scoutInfoData.jednostka[0].snapshot.shortName}
+                              </div>
+                            )}
+                            <div className="mb-2">
+                              <b>Liczba harcerzy:</b> {Array.isArray(scoutInfoData.harcerze) ? scoutInfoData.harcerze.length : 0}
+                            </div>
+                            <div className="mb-2">
+                              <b>Lista harcerzy:</b>
+                              <ul className="mt-1 mb-0 ps-3">
+                                {Array.isArray(scoutInfoData.harcerze) && scoutInfoData.harcerze.length > 0 ? (
+                                  scoutInfoData.harcerze.map(h => (
+                                    <li key={h.id}>
+                                      {h.name} {h.surname}
+                                      {h.zastepowy && (
+                                        <span className="ms-2" style={{ color: "#0d7337", fontWeight: 500 }}>
+                                          (zastępowy)
+                                        </span>
+                                      )}
+                                    </li>
+                                  ))
+                                ) : (
+                                  <li className="text-muted">Brak harcerzy w tym zastępie.</li>
+                                )}
+                              </ul>
+                            </div>
+                            {scoutInfoData.blog && (
+                              <div className="mb-2">
+                                <b>Blog:</b>{" "}
+                                <a href={scoutInfoData.blog} target="_blank" rel="noopener noreferrer">
+                                  {scoutInfoData.blog}
+                                </a>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-muted">Brak danych o zastępie.</div>
+                        )}
+                      </Modal.Body>
+                    </Modal>
                     </Card.Body>
                   </Card>
 
@@ -694,10 +799,16 @@ export default function PanelPage() {
                           ))}
                         </Form.Select>
                       </Col>
-                      <Col md={3} className="d-flex align-items-end">
-                        <Button variant="outline-secondary" size="sm" className="w-100" onClick={handleResetFilters}>
-                          Resetuj filtry
-                        </Button>
+                      <Col md={3}>
+                        <Form.Label>Wierszy na stronę</Form.Label>
+                        <Form.Select
+                          value={historyRowsPerPage}
+                          onChange={e => setHistoryRowsPerPage(Number(e.target.value))}
+                        >
+                          {[10, 20, 50, 100].map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </Form.Select>
                       </Col>
                     </Row>
                     <Row className="g-3 mb-3">
@@ -717,23 +828,56 @@ export default function PanelPage() {
                           onChange={e => setHistoryDateTo(e.target.value)}
                         />
                       </Col>
-                      <Col md={3}>
-                        <Form.Label>Wierszy na stronę</Form.Label>
-                        <Form.Select
-                          value={historyRowsPerPage}
-                          onChange={e => setHistoryRowsPerPage(Number(e.target.value))}
+                      {/* Desktop: przyciski po prawej, mobile: pod spodem */}
+                      {!isMobile && (
+                        <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
+                          <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                            Resetuj filtry
+                          </Button>
+                          <Button
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => {
+                              setPunktacjeLoading(true);
+                              punktacjaListAll().then((data) => {
+                                setPunktacje(data);
+                                setPunktacjeLoading(false);
+                              });
+                            }}
+                            className="ms-2"
+                          >
+                            Odśwież punktację
+                          </Button>
+                          <div className="text-muted ms-2">
+                            Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
+                          </div>
+                        </Col>
+                      )}
+                    </Row>
+                    {/* Mobile: przyciski pod spodem */}
+                    {isMobile && (
+                      <div className="d-flex flex-column gap-2 mt-2">
+                        <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                          Resetuj filtry
+                        </Button>
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          onClick={() => {
+                            setPunktacjeLoading(true);
+                            punktacjaListAll().then((data) => {
+                              setPunktacje(data);
+                              setPunktacjeLoading(false);
+                            });
+                          }}
                         >
-                          {[10, 20, 50, 100].map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </Form.Select>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-end justify-content-end">
-                        <div className="text-muted ms-2">
+                          Odśwież punktację
+                        </Button>
+                        <div className="text-muted mt-2">
                           Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
                         </div>
-                      </Col>
-                    </Row>
+                      </div>
+                    )}
                   </div>
                 </Collapse>
                 {punktacjeLoading ? (
@@ -742,79 +886,105 @@ export default function PanelPage() {
                   <div className="text-muted py-5 text-center">Brak wpisów punktacji dla wybranych filtrów.</div>
                 ) : (
                   <>
-                    <Table bordered hover responsive>
-                      <thead>
-                        <tr>
-                          <th style={{ minWidth: 120, width: 120 }}>Data dodania</th>
-                          <th style={{ minWidth: 110, width: 110 }}>Miesiąc</th>
-                          <th style={{ minWidth: 160, width: 160 }}>Kategoria</th>
-                          <th style={{ minWidth: 120, width: 120 }}>Zastęp</th>
-                          <th style={{ minWidth: 80, width: 80 }}>Punkty</th>
-                          <th style={{ minWidth: 180, width: 180 }}>Uwagi</th>
-                          <th style={{ minWidth: 120, width: 120 }}>Akcje</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedHistoryRecords.map((rec, idx) => (
-                          <tr key={rec.id || idx}>
-                            <td>{formatDate(rec.scoreAddDate)}</td>
-                            <td>{getMonthLabelFromKey(rec.miesiac)}</td>
-                            <td>
-                              <span
-                                style={{
-                                  color: "#0d6efd",
-                                  cursor: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "pointer" : "default",
-                                  textDecoration: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "underline dotted" : "none"
-                                }}
-                                onClick={() => {
-                                  if (rec.scoreCat?.[0]?.snapshot?.scoringDesc) {
-                                    setCatDescTitle(rec.scoreCat[0].snapshot.scoringName || "Opis kategorii");
-                                    setCatDescHtml(rec.scoreCat[0].snapshot.scoringDesc);
-                                    setShowCatDesc(true);
-                                  }
-                                }}
-                              >
-                                {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
-                              </span>
-                            </td>
-                            <td>
-                              {teamScouts.find(z => z.id === rec.scoreTeam?.[0]?.id)?.name || "?"}
-                            </td>
-                            <td>{rec.scoreValue}</td>
-                            <td>
-                              {rec.scoreInfo
-                                ? (
-                                  <span
-                                    dangerouslySetInnerHTML={{
-                                      __html: rec.scoreInfo
+                    {/* Lista wpisów punktacji w stylu kart, 2 kolumny na desktop */}
+                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
+                      {paginatedHistoryRecords.map((rec) => (
+                        <div
+                          key={rec.id}
+                          className={isDesktopWide ? "col-md-6" : ""}
+                          style={isDesktopWide ? { display: "flex" } : {}}
+                        >
+                          <div className="bg-light rounded-lg border p-4 w-100" style={isDesktopWide ? { minHeight: 0 } : {}}>
+                            <div className="d-flex align-items-start justify-content-between gap-4">
+                              {/* Lewa część - główne informacje */}
+                              <div className="flex-grow-1">
+                                <div className="d-flex align-items-center gap-3 mb-2">
+                                  <div>
+                                    <Trophy size={20} />
+                                  </div>
+                                  <div>
+                                    <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                      {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
+                                    </h4>
+                                  </div>
+                                </div>
+                                {/* Data, miesiąc, zastęp */}
+                                <div className="d-flex flex-column flex-md-row align-items-md-center gap-2 text-xs text-muted mb-2">
+                                  <div>
+                                    {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
+                                  </div>
+                                  <div className="d-block d-md-none mt-1">
+                                    <Badge bg="secondary" className="text-xs">
+                                      {teamScouts.find(z => z.id === rec.scoreTeam?.[0]?.id)?.name || "?"}
+                                    </Badge>
+                                  </div>
+                                  <div className="d-none d-md-block ms-3">
+                                    <Badge bg="secondary" className="text-xs">
+                                      {teamScouts.find(z => z.id === rec.scoreTeam?.[0]?.id)?.name || "?"}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Środek - punkty */}
+                              <div className="text-center flex-shrink-0 px-2">
+                                <div className="fs-2 fw-bold text-primary">
+                                  {rec.scoreValue}
+                                </div>
+                                <div className="text-xs text-muted">
+                                  pkt
+                                </div>
+                              </div>
+                              {/* Prawa część - przyciski akcji */}
+                              <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => openEditEntryModal(rec)}
+                                  className="mb-1"
+                                  title="Edytuj"
+                                >
+                                  <Edit size={14} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => openDeleteEntryModal(rec)}
+                                  title="Usuń"
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                                {rec.scoreInfo && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    className="mt-1"
+                                    title="Pokaż uwagi"
+                                    onClick={() => {
+                                      setNotesHtml(rec.scoreInfo);
+                                      setNotesTitle("Uwagi do wpisu");
+                                      setShowNotesModal(true);
                                     }}
-                                  />
-                                )
-                                : <span className="text-muted">brak</span>}
-                            </td>
-                            <td className="text-center">
-                              <Button
-                                variant="outline-secondary"
-                                size="sm"
-                                className="me-2"
-                                title="Edytuj"
-                                onClick={() => openEditEntryModal(rec)}
-                              >
-                                <Edit size={16} />
-                              </Button>
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                title="Usuń"
-                                onClick={() => openDeleteEntryModal(rec)}
-                              >
-                                <Trash2 size={16} />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                                  >
+                                    <Info size={16} />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Modal z uwagami */}
+                    <Modal show={showNotesModal} onHide={() => setShowNotesModal(false)} centered>
+                      <Modal.Header closeButton>
+                        <Modal.Title>{notesTitle}</Modal.Title>
+                      </Modal.Header>
+                      <Modal.Body>
+                        <div dangerouslySetInnerHTML={{ __html: notesHtml }} />
+                      </Modal.Body>
+                    </Modal>
+
                     {/* Paginacja */}
                     {totalHistoryPages > 1 && (
                       <div className="d-flex justify-content-center mt-3">
