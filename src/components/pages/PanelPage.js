@@ -365,7 +365,7 @@ export default function PanelPage() {
         className="d-flex d-md-none justify-content-around align-items-center"
         style={{
           position: "fixed",
-          top: 76,
+          top: 72,
           left: 0,
           right: 0,
           height: 54,
