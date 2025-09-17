@@ -137,6 +137,20 @@ export default function PanelPage() {
     }
   }, [userWeb, teams]);
 
+  async function getMailingRecipientsFromFirestore() {
+    const db = getFirestore(app);
+    const mailingsSnap = await getDocs(collection(db, "mailings"));
+    const recipients = [];
+    mailingsSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.user && Array.isArray(data.user) && data.user[0]?.snapshot?.email) {
+        recipients.push(data.user[0].snapshot.email);
+      }
+    });
+    return recipients;
+  }
+
+// Obsługa wysyłki wniosku o dostęp
 async function handleRequestAccess(e) {
   e.preventDefault();
   if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
@@ -153,15 +167,19 @@ async function handleRequestAccess(e) {
     });
     setRequestSuccess(true);
 
-    // Wyślij maila o nowym wniosku
-    await fetch("http://localhost:3001/api/send-account-request", {
+    // Pobierz odbiorców z Firestore
+    const recipients = await getMailingRecipientsFromFirestore();
+
+    // Wyślij maila przez endpoint Vercel
+    await fetch("/api/send-account-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         jednostka: jednostkaNazwa,
         funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
         name: user?.displayName || "",
-        email: user?.email || ""
+        email: user?.email || "",
+        recipients
       })
     });
 
@@ -613,9 +631,6 @@ async function handleRequestAccess(e) {
               {/* --- ZWYKŁY UŻYTKOWNIK BEZ JEDNOSTKI: FORMULARZ WNIOSKU O DOSTĘP --- */}
               {showRequestForm && (
                 <Card className="mb-4">
-                  <Card.Header>
-                    <span className="fw-semibold">Nowe konto utworzone</span>
-                  </Card.Header>
                   <Card.Body>
                     <Alert variant="info">
                       Twoje konto zostało utworzone.<br />
