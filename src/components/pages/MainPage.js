@@ -1,11 +1,21 @@
-import { Button } from "react-bootstrap";
+import JednostkiList from "../views/JednostkiList.js";
+import NewsSection from "./NewsPagev2.js";
+import MainBanner from "./MainBanner.js";
 
 function MainPage() {
     return (
-      <div>
-        <h1>Strona Glowna</h1>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f8f9fa"
+        }}
+      >
+        <MainBanner />
+        <div style={{ marginTop: "0" }}>
+          <NewsSection />
+        </div>
       </div>
     )
-  }
-  
-  export default MainPage
+}
+
+export default MainPage
