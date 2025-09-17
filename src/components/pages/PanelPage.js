@@ -6,6 +6,9 @@ import { Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTri
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
+import { useAuth } from "../../AuthContext";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { app } from "../../firebaseConfig";
 
 // Sidebar navigation items
 const NAV = [
@@ -48,6 +51,17 @@ export default function PanelPage() {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const [notesHtml, setNotesHtml] = useState("");
   const [notesTitle, setNotesTitle] = useState("");
+  const { user, loading: authLoading } = useAuth();
+  const [userWeb, setUserWeb] = useState(null);
+  const [userWebLoading, setUserWebLoading] = useState(true);
+  const [userWebError, setUserWebError] = useState(null);
+
+  // Formularz wnioskowania o dostęp
+  const [requestUnitId, setRequestUnitId] = useState("");
+  const [requestRole, setRequestRole] = useState("");
+  const [requestOtherRole, setRequestOtherRole] = useState("");
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
 
   // Responsive helpers
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
@@ -72,6 +86,83 @@ export default function PanelPage() {
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
   const [historyDateFrom, setHistoryDateFrom] = useState("");
   const [historyDateTo, setHistoryDateTo] = useState("");
+
+  // Ustaw domyślną drużynę dla admina z jednostką LUB zwykłego użytkownika z jednostką
+  useEffect(() => {
+    if (
+      userWeb &&
+      Array.isArray(userWeb.jednostka) &&
+      userWeb.jednostka[0]?.id &&
+      teams.length > 0
+    ) {
+      setSelectedTeam(userWeb.jednostka[0].id);
+    }
+  }, [userWeb, teams]);
+
+  useEffect(() => {
+    if (!user || !user.email) {
+      setUserWeb(null);
+      setUserWebLoading(false);
+      return;
+    }
+    setUserWebLoading(true);
+    setUserWebError(null);
+    const db = getFirestore(app);
+    const q = query(collection(db, "usersWeb"), where("email", "==", user.email));
+    getDocs(q)
+      .then(snapshot => {
+        if (!snapshot.empty) {
+          setUserWeb({ ...snapshot.docs[0].data(), _docId: snapshot.docs[0].id });
+        } else {
+          setUserWeb(null);
+        }
+        setUserWebLoading(false);
+      })
+      .catch(err => {
+        setUserWebError("Błąd pobierania danych użytkownika: " + err.message);
+        setUserWebLoading(false);
+      });
+  }, [user]);
+
+  // Ustaw domyślną drużynę dla admina z jednostką
+  useEffect(() => {
+    if (
+      userWeb &&
+      userWeb.admin === true &&
+      Array.isArray(userWeb.jednostka) &&
+      userWeb.jednostka[0]?.id &&
+      teams.length > 0
+    ) {
+      setSelectedTeam(userWeb.jednostka[0].id);
+    }
+  }, [userWeb, teams]);
+
+  // Obsługa wysyłki wniosku o dostęp
+  async function handleRequestAccess(e) {
+    e.preventDefault();
+    if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
+    setRequestSubmitting(true);
+    try {
+      const db = getFirestore(app);
+      const docRef = doc(db, "usersWeb", userWeb._docId);
+      const unitObj = teams.find(t => t.id === requestUnitId);
+      await updateDoc(docRef, {
+        active: unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "",
+        funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+      });
+      setRequestSuccess(true);
+      // Odśwież dane użytkownika
+      setTimeout(() => {
+        setUserWeb({ ...userWeb, 
+          active: unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "",
+          funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+        });
+      }, 1000);
+    } catch (err) {
+      setUserWebError("Błąd wysyłania wniosku: " + err.message);
+    }
+    setRequestSubmitting(false);
+  }
 
   // Pobierz drużyny z Firestore
   useEffect(() => {
@@ -331,6 +422,35 @@ export default function PanelPage() {
     }));
   }, [zastepy, punktacje]);
 
+  // --- UI LOGIKA DOSTĘPU ---
+  // 1. Admin bez jednostki: wybierz drużynę
+  const showTeamSelect =
+    userWeb &&
+    userWeb.admin === true &&
+    (!userWeb.jednostka || !Array.isArray(userWeb.jednostka) || !userWeb.jednostka[0]?.id);
+
+  // 2. Zwykły użytkownik bez jednostki i nie admin: ukryj wybierz drużynę, pokaż formularz wniosku
+  const isNormalUserNoUnit =
+    userWeb &&
+    userWeb.admin !== true &&
+    (!userWeb.jednostka || !Array.isArray(userWeb.jednostka) || !userWeb.jednostka[0]?.id);
+
+  // 3. Zwykły użytkownik bez jednostki, nie admin, brak .active: pokaż formularz wniosku
+  const showRequestForm =
+    isNormalUserNoUnit && !userWeb?.active;
+
+  // 4. Zwykły użytkownik bez jednostki, nie admin, z .active: pokaż oczekiwanie na akceptację
+  const showRequestPending =
+    isNormalUserNoUnit && !!userWeb?.active;
+
+  // 5. Admin z jednostką: wybierz drużynę, domyślnie ustawioną
+  const showTeamSelectForAdminWithUnit =
+    userWeb &&
+    userWeb.admin === true &&
+    Array.isArray(userWeb.jednostka) &&
+    userWeb.jednostka[0]?.id;
+  // --- KONIEC LOGIKI DOSTĘPU ---
+  
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f8f9fa" }}>
       {/* Sidebar for desktop */}
@@ -424,7 +544,21 @@ export default function PanelPage() {
         }}
       >
         <div style={{ maxWidth: "100%", margin: "0 auto", marginBottom: "3rem" }}>
-          {tab === "team" && (
+          {/* --- ŁADOWANIE DANYCH UŻYTKOWNIKA --- */}
+          {(authLoading || userWebLoading) && (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2 text-muted">Ładowanie danych użytkownika...</div>
+            </div>
+          )}
+          {userWebError && (
+            <Alert variant="danger" className="mb-4">
+              {userWebError}
+            </Alert>
+          )}
+
+          {/* --- PANEL DRUŻYNOWY --- */}
+          {!authLoading && !userWebLoading && tab === "team" && (
             <>
               <div className="mb-4">
                 <h1 className="fw-bold mb-2" style={{ fontSize: "2rem" }}>Panel Drużynowego</h1>
@@ -433,33 +567,155 @@ export default function PanelPage() {
                 </div>
               </div>
 
-              {/* Wybór drużyny */}
-              <Card className="mb-4">
-                <Card.Header className="d-flex align-items-center gap-2">
-                  <Users size={20} className="me-2" />
-                  <span className="fw-semibold">Wybierz drużynę</span>
-                </Card.Header>
-                <Card.Body>
-                  {teamsLoading ? (
-                    <Spinner animation="border" />
-                  ) : (
-                    <Form.Select
-                      value={selectedTeam}
-                      onChange={(e) => setSelectedTeam(e.target.value)}
-                      style={{ maxWidth: 400 }}
-                    >
-                      <option value="">Wybierz drużynę do zarządzania</option>
-                      {teams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.shortName || team.name || team.nazwa || "Drużyna"}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  )}
-                </Card.Body>
-              </Card>
+              {/* --- ADMIN BEZ JEDNOSTKI: WYBÓR DRUŻYNY --- */}
+              {showTeamSelect && (
+                <Card className="mb-4">
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <Users size={20} className="me-2" />
+                    <span className="fw-semibold">Wybierz drużynę do zarządzania</span>
+                  </Card.Header>
+                  <Card.Body>
+                    {teamsLoading ? (
+                      <Spinner animation="border" />
+                    ) : (
+                      <Form.Select
+                        value={selectedTeam}
+                        onChange={(e) => setSelectedTeam(e.target.value)}
+                        style={{ maxWidth: 400 }}
+                      >
+                        <option value="">Wybierz drużynę do zarządzania</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.shortName || team.name || team.nazwa || "Drużyna"}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    )}
+                  </Card.Body>
+                </Card>
+              )}
 
-              {selectedTeam && (
+              {/* --- ZWYKŁY UŻYTKOWNIK BEZ JEDNOSTKI: FORMULARZ WNIOSKU O DOSTĘP --- */}
+              {showRequestForm && (
+                <Card className="mb-4">
+                  <Card.Header>
+                    <span className="fw-semibold">Nowe konto utworzone</span>
+                  </Card.Header>
+                  <Card.Body>
+                    <Alert variant="info">
+                      Twoje konto zostało utworzone.<br />
+                      Aby uzyskać dostęp do panelu drużyny, złóż wniosek o dostęp do wybranej drużyny i podaj swoją funkcję.
+                    </Alert>
+                    <Form onSubmit={handleRequestAccess}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Wybierz drużynę</Form.Label>
+                        <Form.Select
+                          value={requestUnitId}
+                          onChange={e => setRequestUnitId(e.target.value)}
+                          required
+                        >
+                          <option value="">Wybierz drużynę</option>
+                          {teams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.shortName || team.name || team.nazwa || "Drużyna"}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Funkcja</Form.Label>
+                        <Form.Select
+                          value={requestRole}
+                          onChange={e => setRequestRole(e.target.value)}
+                          required
+                        >
+                          <option value="">Wybierz funkcję</option>
+                          <option value="drużynowy">Drużynowy</option>
+                          <option value="przyboczny">Przyboczny</option>
+                          <option value="inna">Inna (wpisz jaka)</option>
+                        </Form.Select>
+                      </Form.Group>
+                      {requestRole === "inna" && (
+                        <Form.Group className="mb-3">
+                          <Form.Label>Podaj funkcję</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={requestOtherRole}
+                            onChange={e => setRequestOtherRole(e.target.value)}
+                            required
+                          />
+                        </Form.Group>
+                      )}
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        className="w-100"
+                        disabled={requestSubmitting}
+                      >
+                        {requestSubmitting ? "Wysyłanie..." : "Wyślij wniosek"}
+                      </Button>
+                      {requestSuccess && (
+                        <Alert variant="success" className="mt-3 mb-0">
+                          Wniosek został wysłany. Oczekuj na akceptację przez administratora.
+                        </Alert>
+                      )}
+                    </Form>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* --- ZWYKŁY UŻYTKOWNIK BEZ JEDNOSTKI: WNIOSEK OCZEKUJE NA AKCEPTACJĘ --- */}
+              {showRequestPending && (
+                <Card className="mb-4">
+                  <Card.Header>
+                    <span className="fw-semibold">Wniosek oczekuje na akceptację</span>
+                  </Card.Header>
+                  <Card.Body>
+                    <Alert variant="info">
+                      Twój wniosek o dostęp do drużyny oczekuje na akceptację przez administratora.
+                    </Alert>
+                    <div>
+                      <b>Wnioskowana drużyna:</b> {userWeb.active || "-"}<br />
+                      <b>Funkcja:</b> {userWeb.funkcja || "-"}
+                    </div>
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* --- ADMIN Z JEDNOSTKĄ: WYBÓR DRUŻYNY (DOMYŚLNIE USTAWIONA) --- */}
+              {showTeamSelectForAdminWithUnit && (
+                <Card className="mb-4">
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <Users size={20} className="me-2" />
+                    <span className="fw-semibold">Wybierz drużynę</span>
+                  </Card.Header>
+                  <Card.Body>
+                    {teamsLoading ? (
+                      <Spinner animation="border" />
+                    ) : (
+                      <Form.Select
+                        value={selectedTeam}
+                        onChange={(e) => setSelectedTeam(e.target.value)}
+                        style={{ maxWidth: 400 }}
+                      >
+                        <option value="">Wybierz drużynę do zarządzania</option>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.shortName || team.name || team.nazwa || "Drużyna"}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    )}
+                  </Card.Body>
+                </Card>
+              )}
+
+              {/* --- RESZTA PANELU DRUŻYNOWEGO --- */}
+              {/* Wyświetl statystyki, zastępy, itd. tylko jeśli użytkownik ma przypisaną jednostkę */}
+              {(
+                (userWeb && Array.isArray(userWeb.jednostka) && userWeb.jednostka[0]?.id) ||
+                (userWeb && userWeb.admin === true && selectedTeam)
+              ) && (
                 <>
                   {/* Statystyki drużyny */}
                   <Card className="mb-4">

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   getAuth,
   onAuthStateChanged,
@@ -8,6 +8,7 @@ import {
   signOut,
   getRedirectResult
 } from "firebase/auth";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 import { app } from "./firebaseConfig";
 
 const AuthContext = createContext();
@@ -17,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState(null);
   const auth = getAuth(app);
+  const db = getFirestore(app);
 
   useEffect(() => {
     getRedirectResult(auth)
@@ -24,14 +26,29 @@ export const AuthProvider = ({ children }) => {
         if (error) setAuthError(error.message);
       });
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+
+      // Dodaj użytkownika do kolekcji "usersWeb" jeśli nie istnieje
+      if (currentUser) {
+        const userRef = doc(db, "usersWeb", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, {
+            uid: currentUser.uid,
+            email: currentUser.email,
+            displayName: currentUser.displayName,
+            photoURL: currentUser.photoURL,
+            provider: currentUser.providerData?.[0]?.providerId || null
+          });
+        }
+      }
     });
 
     return () => unsubscribe();
-  }, [auth]);
-  
+  }, [auth, db]);
+
   // Obsługa logowania Google: popup na desktop, redirect na mobile
   const loginWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
