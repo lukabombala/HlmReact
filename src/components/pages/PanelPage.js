@@ -137,32 +137,47 @@ export default function PanelPage() {
     }
   }, [userWeb, teams]);
 
-  // Obsługa wysyłki wniosku o dostęp
-  async function handleRequestAccess(e) {
-    e.preventDefault();
-    if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
-    setRequestSubmitting(true);
-    try {
-      const db = getFirestore(app);
-      const docRef = doc(db, "usersWeb", userWeb._docId);
-      const unitObj = teams.find(t => t.id === requestUnitId);
-      await updateDoc(docRef, {
-        active: unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "",
+async function handleRequestAccess(e) {
+  e.preventDefault();
+  if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
+  setRequestSubmitting(true);
+  try {
+    const db = getFirestore(app);
+    const docRef = doc(db, "usersWeb", userWeb._docId);
+    const unitObj = teams.find(t => t.id === requestUnitId);
+    const jednostkaNazwa = unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "";
+
+    await updateDoc(docRef, {
+      active: jednostkaNazwa,
+      funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+    });
+    setRequestSuccess(true);
+
+    // Wyślij maila o nowym wniosku
+    await fetch("http://localhost:3001/api/send-account-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        jednostka: jednostkaNazwa,
+        funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
+        name: user?.displayName || "",
+        email: user?.email || ""
+      })
+    });
+
+    // Odśwież dane użytkownika
+    setTimeout(() => {
+      setUserWeb({
+        ...userWeb,
+        active: jednostkaNazwa,
         funkcja: requestRole === "inna" ? requestOtherRole : requestRole
       });
-      setRequestSuccess(true);
-      // Odśwież dane użytkownika
-      setTimeout(() => {
-        setUserWeb({ ...userWeb, 
-          active: unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "",
-          funkcja: requestRole === "inna" ? requestOtherRole : requestRole
-        });
-      }, 1000);
-    } catch (err) {
-      setUserWebError("Błąd wysyłania wniosku: " + err.message);
-    }
-    setRequestSubmitting(false);
+    }, 1000);
+  } catch (err) {
+    setUserWebError("Błąd wysyłania wniosku: " + err.message);
   }
+  setRequestSubmitting(false);
+}
 
   // Pobierz drużyny z Firestore
   useEffect(() => {
