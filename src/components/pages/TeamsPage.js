@@ -1,9 +1,7 @@
 import { Card, Badge, Container, Row, Col, Spinner, Accordion } from "react-bootstrap";
-import { Users, MapPin } from "lucide-react";
+import { Users, MapPin, Info } from "lucide-react";
 import { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
-
-import { Info } from "lucide-react"; 
 
 import { jednostkiListAll } from '../../services/jednostkiList.mjs';
 import { zastepyListAll } from '../../services/zastepyList.mjs';
@@ -46,7 +44,7 @@ export default function TeamsSection() {
         <div className="text-center mb-5">
           <h2 className="fw-bold">Drużyny uczestniczące</h2>
           <p className="text-muted">
-            Poznaj wszystkie drużyny harcerskie biorące udział w turnieju
+            Poznaj wszystkie drużyny harcerskie biorące udział w HLM.
           </p>
         </div>
 
@@ -64,10 +62,10 @@ export default function TeamsSection() {
                           Wrocław
                         </div>
                         <div className="d-flex align-items-center gap-1">
-                        <Users size={16} />
-                        {troopsByTeam[team.id]
-                          ? troopsByTeam[team.id].reduce((sum, troop) => sum + troop.harcerze.length, 0)
-                          : 0} harcerzy
+                          <Users size={16} />
+                          {troopsByTeam[team.id]
+                            ? troopsByTeam[team.id].reduce((sum, troop) => sum + troop.harcerze.length, 0)
+                            : 0} harcerzy
                         </div>
                         <Badge bg="secondary">Założona {team.rokZalozenia}r.</Badge>
                       </div>
@@ -84,47 +82,51 @@ export default function TeamsSection() {
                 </Card.Header>
                 
                 {team.description && (
-                <Accordion>
-                  <Accordion.Item eventKey={`desc-${team.id}`}>
-                    <Accordion.Header>
-                      <div className="d-flex align-items-center gap-2">
-                        <Info size={18} />
-                        <span>Opis drużyny</span>
-                      </div>
-                    </Accordion.Header>
-                    <Accordion.Body>
-                      <div className="text-muted small" dangerouslySetInnerHTML={{ __html: team.description }} />
-                    </Accordion.Body>
-                  </Accordion.Item>
-                </Accordion>
-              )}
-
+                  <Accordion>
+                    <Accordion.Item eventKey={`desc-${team.id}`}>
+                      <Accordion.Header>
+                        <div className="d-flex align-items-center gap-2">
+                          <Info size={18} />
+                          <span>Opis drużyny</span>
+                        </div>
+                      </Accordion.Header>
+                      <Accordion.Body>
+                        <div className="text-muted small" dangerouslySetInnerHTML={{ __html: team.description }} />
+                      </Accordion.Body>
+                    </Accordion.Item>
+                  </Accordion>
+                )}
 
                 <Card.Body>
                   <h6 className="fw-semibold mb-3">Zastępy w drużynie:</h6>
                   {troopsByTeam[team.id] ? (
-                    <Row className="gy-3">
+                    <Row className="gy-3 gx-2">
                       {troopsByTeam[team.id].map((troop, index) => (
-                        <Col key={index} sm={6} lg={4}>
-                          <Link
-                          to={`/zastepy/${troop.id}`}
-                          style={{ textDecoration: "none", color: "inherit" }}
-                          className="zastep-link"
+                        <Col
+                          key={index}
+                          xs={6}   // 2 kolumny na mobile
+                          lg={2}   // 6 kolumn na desktop
+                          className="d-flex"
                         >
-                          <div
-                            className="border rounded p-3 bg-white h-100"
-                            style={{
-                              transition: "box-shadow 0.2s, border-color 0.2s",
-                              cursor: "pointer"
-                            }}
+                          <Link
+                            to={`/zastepy/${troop.id}`}
+                            style={{ textDecoration: "none", color: "inherit", width: "100%" }}
+                            className="zastep-link"
                           >
-                            <h6 className="fw-medium mb-2">{troop.fullName}</h6>
-                            <div className="d-flex align-items-center gap-1 small">
-                              <Users size={14} />
-                              <span>{troop.harcerze.length} harcerzy</span>
+                            <div
+                              className="border rounded p-3 bg-white h-100 w-100"
+                              style={{
+                                transition: "box-shadow 0.2s, border-color 0.2s",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <h6 className="fw-medium mb-2">{troop.fullName}</h6>
+                              <div className="d-flex align-items-center gap-1 small">
+                                <Users size={14} />
+                                <span>{troop.harcerze.length} harcerzy</span>
+                              </div>
                             </div>
-                          </div>
-                        </Link>
+                          </Link>
                         </Col>
                       ))}
                     </Row>

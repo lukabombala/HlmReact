@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Row, Col, Table, Badge, Container, Spinner } from "react-bootstrap";
+import { Link } from "react-router-dom";
 import { Trophy, Medal, Award } from "lucide-react";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 
@@ -183,14 +184,27 @@ export default function ResultsTable() {
                 </thead>
                 <tbody>
                   {results.map((team) => (
-                    <tr key={team.position} style={getRowStyle(team.position)}>
+                    <tr
+                      key={team.position}
+                      style={getRowStyle(team.position)}
+                      className="cursor-pointer"
+                      onClick={() => window.location.href = `/zastepy/${team.id}`}
+                    >
                       <td>
                         <div className="d-flex align-items-center gap-2">
                           {getPositionIcon(team.position)}
                           <span>{team.position}</span>
                         </div>
                       </td>
-                      <td className="fw-medium">{team.name}</td>
+                      <td className="fw-medium">
+                        <Link
+                          to={`/zastepy/${team.id}`}
+                          style={{ textDecoration: "none", color: "inherit" }}
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {team.name}
+                        </Link>
+                      </td>
                       <td className="text-muted small">{team.team}</td>
                       <td className="text-center">
                         <Badge bg="primary">{team.points}</Badge>
