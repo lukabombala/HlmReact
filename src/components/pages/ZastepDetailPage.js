@@ -342,8 +342,11 @@ export default function ZastepDetailPage() {
         </Col>
         <Col xs={12} md={6}>
           <Card className="shadow h-100">
+            <Card.Header className="d-flex align-items-center gap-2">
+              <Trophy size={20} className="me-2" />
+              <span className="fw-semibold">Przebieg punktacji w sezonie</span>
+            </Card.Header>
             <Card.Body>
-              <h4 className="fw-bold mb-3">Przebieg punktacji w sezonie</h4>
               <div className="mb-4">
                 <Bar data={barData} options={barOptions} height={260} />
               </div>
@@ -358,8 +361,11 @@ export default function ZastepDetailPage() {
       <Row className="mt-4">
         <Col xs={12}>
           <Card className="shadow mb-4">
+            <Card.Header className="d-flex align-items-center gap-2">
+              <Info size={20} className="me-2" />
+              <span className="fw-semibold">Tabela punktacji według kategorii</span>
+            </Card.Header>
             <Card.Body>
-              <h4 className="fw-bold mb-3">Tabela punktacji według kategorii</h4>
               {scoreLoading ? (
                 <Spinner animation="border" />
               ) : pointsTable.length === 0 ? (
