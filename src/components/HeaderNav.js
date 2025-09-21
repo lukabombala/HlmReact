@@ -9,11 +9,12 @@ import {
   Shield,
   LogIn,
   LogOut,
-  Box
+  Box,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
 import { useAuth } from "../AuthContext";
+import fbLogo from "../images/facebook_logo.png";
 
 function HeaderNav() {
   const [expanded, setExpanded] = useState(false);
@@ -127,6 +128,30 @@ function HeaderNav() {
                   </Button>
                 </>
               )}
+              <a
+                href="https://facebook.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ms-3 d-flex align-items-center justify-content-center"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  borderRadius: "0.5rem",
+                  width: 36,
+                  height: 36,
+                  transition: "background 0.2s"
+                }}
+                title="Facebook"
+              >
+                <img
+                  src={fbLogo}
+                  alt="Facebook"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    display: "block"
+                  }}
+                />
+              </a>
             </div>
           </Nav>
         </Navbar.Collapse>
