@@ -9,6 +9,7 @@ import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { useAuth } from "../../AuthContext";
 import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
+import "./PanelPage.css";
 
 // Sidebar navigation items
 const NAV = [
@@ -43,6 +44,9 @@ const darkTableStyle = {
   background: "#232326",
   color: "#e5e7eb",
   borderColor: "#333",
+};
+const darkTextStyle = {
+  color: "#e5e7eb"
 };
 
 export default function PanelPage() {
@@ -513,6 +517,7 @@ export default function PanelPage() {
   
   return (
     <div
+      className={darkMode ? "panel-darkmode" : ""}
       style={{
         display: "flex",
         minHeight: "100vh",
@@ -603,6 +608,7 @@ export default function PanelPage() {
       {/* Main content */}
       <Container
         fluid
+        
         style={{
           maxWidth: "100%",
           margin: "0 auto",
@@ -630,15 +636,15 @@ export default function PanelPage() {
           {!authLoading && !userWebLoading && tab === "team" && (
             <>
               <div className="mb-4">
-                <h1 className="fw-bold mb-2" style={{ fontSize: "2rem" }}>Panel Drużynowego</h1>
-                <div className="text-muted mb-3">
+                <h1 className="fw-bold mb-2" style={{ fontSize: "2rem", ...(darkMode ? darkTextStyle : {}) }}>Panel Drużynowego</h1>
+                <div className="text-muted mb-3" style={darkMode ? darkTextStyle : {}}>
                   Zarządzaj punktacją zastępów w Twojej drużynie.
                 </div>
               </div>
 
               {/* --- ADMIN BEZ JEDNOSTKI: WYBÓR DRUŻYNY --- */}
               {showTeamSelect && (
-                <Card className="mb-4">
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Header className="d-flex align-items-center gap-2">
                     <Users size={20} className="me-2" />
                     <span className="fw-semibold">Wybierz drużynę do zarządzania</span>
@@ -666,7 +672,7 @@ export default function PanelPage() {
 
               {/* --- ZWYKŁY UŻYTKOWNIK BEZ JEDNOSTKI: FORMULARZ WNIOSKU O DOSTĘP --- */}
               {showRequestForm && (
-                <Card className="mb-4">
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Body>
                     <Alert variant="info">
                       Twoje konto zostało utworzone.<br />
@@ -750,12 +756,12 @@ export default function PanelPage() {
 
               {/* --- ADMIN Z JEDNOSTKĄ: WYBÓR DRUŻYNY (DOMYŚLNIE USTAWIONA) --- */}
               {showTeamSelectForAdminWithUnit && (
-                <Card className="mb-4">
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Header className="d-flex align-items-center gap-2">
                     <Users size={20} className="me-2" />
                     <span className="fw-semibold">Wybierz drużynę</span>
                   </Card.Header>
-                  <Card.Body>
+                  <Card.Body style={darkMode ? darkCardStyle : {}}>
                     {teamsLoading ? (
                       <Spinner animation="border" />
                     ) : (
@@ -784,7 +790,7 @@ export default function PanelPage() {
               ) && (
                 <>
                   {/* Statystyki drużyny */}
-                  <Card className="mb-4">
+                  <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                     <Card.Header className="d-flex align-items-center justify-content-between">
                       <span className="fw-semibold">
                         Moja drużyna: {selectedTeamData?.shortName || selectedTeamData?.name || selectedTeamData?.nazwa}
@@ -799,7 +805,7 @@ export default function PanelPage() {
                         Edycja drużyny
                       </Button>
                     </Card.Header>
-                    <Card.Body>
+                    <Card.Body style={darkMode ? darkCardStyle : {}}>
                     <Row>
                       <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
                         <div className="fs-2 fw-bold text-primary me-3">{teamScouts.length}</div>
@@ -857,13 +863,13 @@ export default function PanelPage() {
                   </Modal>
 
                   {/* Lista zastępów */}
-                  <Card className="mb-4">
+                  <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                     <Card.Header className="d-flex align-items-center gap-2">
                       <Trophy size={20} className="me-2" />
                       <span className="fw-semibold">Moje zastępy</span>
                     </Card.Header>
-                    <Card.Body>
-                      <Table bordered responsive>
+                    <Card.Body style={darkMode ? darkCardStyle : {}}>
+                      <Table bordered responsive >
                       <thead>
                           <tr>
                           <th>Zastęp</th>
@@ -1057,7 +1063,15 @@ export default function PanelPage() {
           )}
 
           {tab === "history" && (
-            <Card>
+          <Container fluid style={{
+            maxWidth: "100%",
+            margin: "0 auto",
+            padding: "0",
+            flex: 1,
+            marginTop: isMobile ? 0 : 0,
+            ...(darkMode ? darkModeStyles : {}),
+          }}>
+            <Card style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <FileText size={20} className="me-2" />
                 <span className="fw-semibold">Historia wpisów punktacji</span>
@@ -1072,7 +1086,7 @@ export default function PanelPage() {
                   {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </Button>
               </Card.Header>
-              <Card.Body>
+              <Card.Body style={darkMode ? darkCardStyle : {}}>
                 <Collapse in={showFilters || !isMobile}>
                   <div>
                     <Row className="g-3 mb-3">
@@ -1209,7 +1223,7 @@ export default function PanelPage() {
                 ) : (
                   <>
                     {/* Lista wpisów punktacji w stylu kart, 2 kolumny na desktop */}
-                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
+                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"} >
                       {paginatedHistoryRecords.map((rec) => (
                         <div
                           key={rec.id}
@@ -1453,6 +1467,7 @@ export default function PanelPage() {
                 )}
               </Card.Body>
             </Card>
+            </Container>
           )}
 
       {tab === "settings" && (
@@ -1473,7 +1488,7 @@ export default function PanelPage() {
                       <Form.Check
                         type="switch"
                         id="darkmode-switch"
-                        label="Włącz tryb ciemny"
+                        label="Włącz tryb ciemny (funkcja w trakcie rozwoju)"
                         checked={darkMode}
                         onChange={() => setDarkMode((v) => !v)}
                         style={{ fontWeight: 500, fontSize: "1.1rem" }}
@@ -1501,7 +1516,6 @@ export default function PanelPage() {
                     </div>
                   </Card.Body>
                 </Card>
-                {/* Możesz dodać tu kolejne ustawienia */}
               </Card.Body>
             </Card>
           )}
