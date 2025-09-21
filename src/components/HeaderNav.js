@@ -138,7 +138,7 @@ function HeaderNav() {
                 </>
               )}
               <a
-                href="https://facebook.com/"
+                href="https://www.facebook.com/starodrzew?locale=pl_PL"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ms-3 d-flex align-items-center justify-content-center"
