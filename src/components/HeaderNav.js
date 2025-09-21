@@ -15,6 +15,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
 import { useAuth } from "../AuthContext";
 import fbLogo from "../images/facebook_logo.png";
+import ytLogo from "../images/youtube_logov2.png";
 
 function HeaderNav() {
   const [expanded, setExpanded] = useState(false);
@@ -136,8 +137,8 @@ function HeaderNav() {
                 style={{
                   background: "rgba(255,255,255,0.08)",
                   borderRadius: "0.5rem",
-                  width: 36,
-                  height: 36,
+                  width: 42,
+                  height: 42,
                   transition: "background 0.2s"
                 }}
                 title="Facebook"
@@ -146,8 +147,32 @@ function HeaderNav() {
                   src={fbLogo}
                   alt="Facebook"
                   style={{
-                    width: 22,
-                    height: 22,
+                    width: 28,
+                    height: 28,
+                    display: "block"
+                  }}
+                />
+              </a>
+              <a
+                href="https://www.youtube.com/@harcerskaligamistrzow1340/featured"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ms-2 d-flex align-items-center justify-content-center"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  borderRadius: "0.5rem",
+                  width: 42,
+                  height: 42,
+                  transition: "background 0.2s"
+                }}
+                title="YouTube"
+              >
+                <img
+                  src={ytLogo}
+                  alt="YouTube"
+                  style={{
+                    width: 28,
+                    height: 28,
                     display: "block"
                   }}
                 />
