@@ -47,12 +47,20 @@ function HeaderNav() {
       variant="dark"
       expand="md"
       className="shadow-lg py-3"
-      style={{ backgroundColor: "#0d7337" }}
+      style={{
+        backgroundColor: "#0d7337",
+        minWidth: "340px",
+        maxWidth: "100vw",
+        width: "100%",
+        // Dodaj szerszy navbar na desktopie
+        paddingLeft: "2.5rem",
+        paddingRight: "2.5rem"
+      }}
       fixed="top"
       expanded={expanded}
       onToggle={setExpanded}
     >
-      <Container>
+      <Container fluid style={{ maxWidth: "1600px" }}>
         <Navbar.Brand
           as={Link}
           to="/"
