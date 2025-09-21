@@ -2,7 +2,7 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination,
 } from "react-bootstrap";
-import { Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -14,7 +14,7 @@ import { app } from "../../firebaseConfig";
 const NAV = [
   { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
   { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
-  { key: "report", label: "Zgłoś błąd", icon: <AlertTriangle size={18} className="me-2" /> },
+  { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, 
 ];
 
 // Pomocnicza funkcja do formatu miesiąca
@@ -28,6 +28,22 @@ function getMonthLabelFromKey(key) {
   ];
   return `${labels[m]} ${year}`;
 }
+
+// Dodaj styl dla darkmode
+const darkModeStyles = {
+  background: "#18181b",
+  color: "#e5e7eb",
+};
+const darkCardStyle = {
+  background: "#232326",
+  color: "#e5e7eb",
+  borderColor: "#333",
+};
+const darkTableStyle = {
+  background: "#232326",
+  color: "#e5e7eb",
+  borderColor: "#333",
+};
 
 export default function PanelPage() {
   const [tab, setTab] = useState("team");
@@ -87,6 +103,17 @@ export default function PanelPage() {
   const [historyDateFrom, setHistoryDateFrom] = useState("");
   const [historyDateTo, setHistoryDateTo] = useState("");
 
+  const [darkMode, setDarkMode] = useState(false);
+
+  // Zapisz preferencję darkmode w localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("panelDarkMode");
+    if (stored === "true") setDarkMode(true);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("panelDarkMode", darkMode ? "true" : "false");
+  }, [darkMode]);
+  
   // Ustaw domyślną drużynę dla admina z jednostką LUB zwykłego użytkownika z jednostką
   useEffect(() => {
     if (
@@ -150,52 +177,52 @@ export default function PanelPage() {
     return recipients;
   }
 
-// Obsługa wysyłki wniosku o dostęp
-async function handleRequestAccess(e) {
-  e.preventDefault();
-  if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
-  setRequestSubmitting(true);
-  try {
-    const db = getFirestore(app);
-    const docRef = doc(db, "usersWeb", userWeb._docId);
-    const unitObj = teams.find(t => t.id === requestUnitId);
-    const jednostkaNazwa = unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "";
+  // Obsługa wysyłki wniosku o dostęp
+  async function handleRequestAccess(e) {
+    e.preventDefault();
+    if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
+    setRequestSubmitting(true);
+    try {
+      const db = getFirestore(app);
+      const docRef = doc(db, "usersWeb", userWeb._docId);
+      const unitObj = teams.find(t => t.id === requestUnitId);
+      const jednostkaNazwa = unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "";
 
-    await updateDoc(docRef, {
-      active: jednostkaNazwa,
-      funkcja: requestRole === "inna" ? requestOtherRole : requestRole
-    });
-    setRequestSuccess(true);
-
-    // Pobierz odbiorców z Firestore
-    const recipients = await getMailingRecipientsFromFirestore();
-
-    // Wyślij maila przez endpoint Vercel
-    await fetch("/api/send-account-request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jednostka: jednostkaNazwa,
-        funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
-        name: user?.displayName || "",
-        email: user?.email || "",
-        recipients
-      })
-    });
-
-    // Odśwież dane użytkownika
-    setTimeout(() => {
-      setUserWeb({
-        ...userWeb,
+      await updateDoc(docRef, {
         active: jednostkaNazwa,
         funkcja: requestRole === "inna" ? requestOtherRole : requestRole
       });
-    }, 1000);
-  } catch (err) {
-    setUserWebError("Błąd wysyłania wniosku: " + err.message);
+      setRequestSuccess(true);
+
+      // Pobierz odbiorców z Firestore
+      const recipients = await getMailingRecipientsFromFirestore();
+
+      // Wyślij maila przez endpoint Vercel
+      await fetch("/api/send-account-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jednostka: jednostkaNazwa,
+          funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
+          name: user?.displayName || "",
+          email: user?.email || "",
+          recipients
+        })
+      });
+
+      // Odśwież dane użytkownika
+      setTimeout(() => {
+        setUserWeb({
+          ...userWeb,
+          active: jednostkaNazwa,
+          funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+        });
+      }, 1000);
+    } catch (err) {
+      setUserWebError("Błąd wysyłania wniosku: " + err.message);
+    }
+    setRequestSubmitting(false);
   }
-  setRequestSubmitting(false);
-}
 
   // Pobierz drużyny z Firestore
   useEffect(() => {
@@ -436,15 +463,15 @@ async function handleRequestAccess(e) {
   }
 
   const allZastepyRanking = useMemo(() => {
-  // Zlicz sumę punktów dla każdego zastępu ze wszystkich drużyn
-  const zastepPoints = zastepy.map(z => {
-    const zPunktacje = punktacje.filter(
-      (p) => p.scoreTeam && p.scoreTeam[0]?.id === z.id
-    );
-    return {
-      id: z.id,
-      points: zPunktacje.reduce((sum, p) => sum + (p.scoreValue || 0), 0),
-    };
+    // Zlicz sumę punktów dla każdego zastępu ze wszystkich drużyn
+    const zastepPoints = zastepy.map(z => {
+      const zPunktacje = punktacje.filter(
+        (p) => p.scoreTeam && p.scoreTeam[0]?.id === z.id
+      );
+      return {
+        id: z.id,
+        points: zPunktacje.reduce((sum, p) => sum + (p.scoreValue || 0), 0),
+      };
     });
     // Posortuj malejąco po punktach
     zastepPoints.sort((a, b) => b.points - a.points);
@@ -485,19 +512,26 @@ async function handleRequestAccess(e) {
   // --- KONIEC LOGIKI DOSTĘPU ---
   
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8f9fa" }}>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        ...(darkMode ? darkModeStyles : { background: "#f8f9fa" }),
+      }}
+    >
       {/* Sidebar for desktop */}
       <aside
         className="d-none d-md-block"
         style={{
           width: 230,
-          background: "#fff",
-          borderRight: "1px solid #e5e7eb",
+          background: darkMode ? "#232326" : "#fff",
+          borderRight: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
           padding: "2.5rem 0 2.5rem 0",
           minHeight: "100vh",
           position: "sticky",
           top: 0,
           zIndex: 2,
+          color: darkMode ? "#e5e7eb" : undefined,
         }}
       >
         <div className="d-flex flex-column align-items-stretch h-100">
@@ -537,9 +571,10 @@ async function handleRequestAccess(e) {
           left: 0,
           right: 0,
           height: 54,
-          background: "#fff",
-          borderBottom: "1px solid #e5e7eb",
+          background: darkMode ? "#232326" : "#fff",
+          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
           zIndex: 100,
+          color: darkMode ? "#e5e7eb" : undefined,
         }}
       >
         {NAV.map((item) => (
@@ -574,6 +609,7 @@ async function handleRequestAccess(e) {
           padding: "0 2rem",
           flex: 1,
           marginTop: isMobile ? 145 : "6rem",
+          ...(darkMode ? darkModeStyles : {}),
         }}
       >
         <div style={{ maxWidth: "100%", margin: "0 auto", marginBottom: "3rem" }}>
@@ -1419,16 +1455,53 @@ async function handleRequestAccess(e) {
             </Card>
           )}
 
-          {tab === "report" && (
-            <Card>
+      {tab === "settings" && (
+            <Card style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
-                <AlertTriangle size={20} className="me-2" />
-                <span className="fw-semibold">Zgłoś błąd</span>
+                <Settings size={20} className="me-2" />
+                <span className="fw-semibold">Ustawienia</span>
               </Card.Header>
               <Card.Body>
-                <div className="text-center text-muted py-5">
-                  <div>Formularz zgłaszania błędów będzie dostępny wkrótce.</div>
-                </div>
+                {/* Dark mode toggle */}
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <Info size={20} className="me-2" />
+                    <span className="fw-semibold">Motyw panelu</span>
+                  </Card.Header>
+                  <Card.Body>
+                    <Form>
+                      <Form.Check
+                        type="switch"
+                        id="darkmode-switch"
+                        label="Włącz tryb ciemny"
+                        checked={darkMode}
+                        onChange={() => setDarkMode((v) => !v)}
+                        style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                      />
+                    </Form>
+                  </Card.Body>
+                </Card>
+                {/* Przeniesiona karta zgłoś błąd */}
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <AlertTriangle size={20} className="me-2" />
+                    <span className="fw-semibold">Zgłoś błąd</span>
+                  </Card.Header>
+                  <Card.Body>
+                    <div className="text-center text-muted py-5">
+                      <div>
+                        Formularz zgłaszania błędów będzie dostępny wkrótce.<br />
+                        <span className="mt-2 d-block">
+                          Na razie prosimy o zgłoszenia mailowo na adres:{" "}
+                          <a href="mailto:lukasz.bombala@zhr.pl" style={{ color: "#0d7337", textDecoration: "underline" }}>
+                            lukasz.bombala@zhr.pl
+                          </a>
+                        </span>
+                      </div>
+                    </div>
+                  </Card.Body>
+                </Card>
+                {/* Możesz dodać tu kolejne ustawienia */}
               </Card.Body>
             </Card>
           )}
