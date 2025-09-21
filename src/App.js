@@ -1,6 +1,10 @@
 import { BrowserRouter as Router, Route, Routes, Outlet} from "react-router-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
+import { AuthProvider, useAuth } from "./AuthContext";
+import ProtectedRoute from "./ProtectedRoute";
+import { useState, useRef } from "react";
+
 import HeaderNav from "./components/HeaderNav";
 import MainPage from "./components/pages/MainPage";
 import Footer from "./components/pages/Footer";
@@ -10,9 +14,8 @@ import NewsDetailPage from "./components/pages/NewsDetailPage";
 import TeamsPage from  "./components/pages/TeamsPage";
 import ZastepDetailPage from "./components/pages/ZastepDetailPage";
 import PanelPage from "./components/pages/PanelPage";
-import { AuthProvider, useAuth } from "./AuthContext";
-import ProtectedRoute from "./ProtectedRoute";
-import { useState, useRef } from "react";
+import ArchivePage from "./components/pages/ArchivePage";
+
 
 function NotFound() {
   return (
@@ -61,6 +64,7 @@ function AppRoutes() {
             <Route path="aktualnosci/:id" element={<NewsDetailPage />} />
             <Route path="zastepy" element={<TeamsPage />} />
             <Route path="zastepy/:id" element={<ZastepDetailPage />} />
+            <Route path="archiwum" element={<ArchivePage />} />
             <Route
               path="panel"
               element={

@@ -8,7 +8,8 @@ import {
   Newspaper,
   Shield,
   LogIn,
-  LogOut
+  LogOut,
+  Box
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
@@ -35,6 +36,7 @@ function HeaderNav() {
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
     ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
+    { name: "Archiwum", icon: Box, to: "/archiwum" },
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
 
