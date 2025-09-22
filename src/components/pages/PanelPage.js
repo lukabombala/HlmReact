@@ -325,7 +325,7 @@ async function handleNotificationToggle(checked) {
       setZastepyLoading(false);
     });
   }, []);
-
+  
   // Pobierz punktacje z Firestore
   useEffect(() => {
     setPunktacjeLoading(true);
@@ -908,7 +908,10 @@ async function handleNotificationToggle(checked) {
                   </Card>
 
                   {/* Modal edycji drużyny */}
-                  <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+                  <Modal show={showEditModal} 
+                         onHide={() => setShowEditModal(false)} 
+                         centered
+                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                     <Modal.Header closeButton>
                       <Modal.Title>Prośba o edycję danych drużyny</Modal.Title>
                     </Modal.Header>
@@ -1021,7 +1024,10 @@ async function handleNotificationToggle(checked) {
                       </tbody>
                     </Table>
 
-                    <Modal show={showScoutInfoModal} onHide={() => setShowScoutInfoModal(false)} centered>
+                    <Modal show={showScoutInfoModal} 
+                           onHide={() => setShowScoutInfoModal(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>
                           {scoutInfoData?.fullName || scoutInfoData?.name || "Informacje o zastępie"}
@@ -1078,7 +1084,10 @@ async function handleNotificationToggle(checked) {
                   </Card>
 
                   {/* Modal dodawania punktów */}
-                  <Modal show={showAddModal} onHide={() => setShowAddModal(false)} centered>
+                  <Modal show={showAddModal} 
+                         onHide={() => setShowAddModal(false)} 
+                         centered
+                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                     <Modal.Header closeButton>
                       <Modal.Title>Dodaj punkty zastępowi</Modal.Title>
                     </Modal.Header>
@@ -1392,7 +1401,10 @@ async function handleNotificationToggle(checked) {
                     </div>
 
                     {/* Modal z uwagami */}
-                    <Modal show={showNotesModal} onHide={() => setShowNotesModal(false)} centered>
+                    <Modal show={showNotesModal} 
+                           onHide={() => setShowNotesModal(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{notesTitle}</Modal.Title>
                       </Modal.Header>
@@ -1422,7 +1434,10 @@ async function handleNotificationToggle(checked) {
                       </div>
                     )}
                     {/* Modal z opisem kategorii */}
-                    <Modal show={showCatDesc} onHide={() => setShowCatDesc(false)} centered>
+                    <Modal show={showCatDesc} 
+                           onHide={() => setShowCatDesc(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{catDescTitle}</Modal.Title>
                       </Modal.Header>
@@ -1431,7 +1446,10 @@ async function handleNotificationToggle(checked) {
                       </Modal.Body>
                     </Modal>
                     {/* Modal edycji wpisu */}
-                    <Modal show={showEditEntryModal} onHide={closeEditEntryModal} centered>
+                    <Modal show={showEditEntryModal} 
+                           onHide={closeEditEntryModal} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Edytuj wpis punktacji</Modal.Title>
                       </Modal.Header>
@@ -1515,7 +1533,10 @@ async function handleNotificationToggle(checked) {
                       </Modal.Body>
                     </Modal>
                     {/* Modal usuwania wpisu */}
-                    <Modal show={showDeleteEntryModal} onHide={closeDeleteEntryModal} centered>
+                    <Modal show={showDeleteEntryModal} 
+                           onHide={closeDeleteEntryModal} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Usuń wpis punktacji</Modal.Title>
                       </Modal.Header>

@@ -29,15 +29,6 @@
   border-color: #333 !important;
 }
 
-.panel-darkmode .btn,
-.panel-darkmode .btn-outline-primary,
-.panel-darkmode .btn-outline-secondary,
-.panel-darkmode .btn-outline-danger {
-  color: #e5e7eb !important;
-  background-color: #232326 !important;
-  border-color: #333 !important;
-}
-
 .panel-darkmode .form-control,
 .panel-darkmode .form-select {
   background-color: #232326 !important;
@@ -78,5 +69,37 @@
 
 /* Dodatkowo, dla border i tekstu w rekordach */
 .panel-darkmode .border {
+  border-color: #333 !important;
+}
+
+.panel-darkmode .modal-content,
+.panel-darkmode .modal-header,
+.panel-darkmode .modal-body,
+.panel-darkmode .modal-footer {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
+  border-color: #333 !important;
+}
+
+.panel-darkmode .modal-title,
+.panel-darkmode .modal-header .btn-close {
+  color: #e5e7eb !important;
+  filter: invert(1);
+}
+
+.panel-darkmode .modal-footer .btn,
+.panel-darkmode .modal-body .btn {
+  /* Przyciski w modalu pozostają kolorowe */
+  background: unset !important;
+  color: unset !important;
+  border-color: unset !important;
+}
+
+/* Dla inputów, selectów i textarea w modalu */
+.panel-darkmode .modal-body .form-control,
+.panel-darkmode .modal-body .form-select,
+.panel-darkmode .modal-body textarea {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
   border-color: #333 !important;
 }
