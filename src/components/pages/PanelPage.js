@@ -1550,76 +1550,65 @@ async function handleNotificationToggle(checked) {
             </Container>
           )}
 
-      {tab === "settings" && (
-            <Card style={darkMode ? darkCardStyle : {}}>
+            {tab === "settings" && (
+        <Card style={darkMode ? darkCardStyle : {}}>
+          <Card.Header className="d-flex align-items-center gap-2">
+            <Settings size={20} className="me-2" />
+            <span className="fw-semibold">Ustawienia</span>
+          </Card.Header>
+          <Card.Body>
+            {/* Karta: Funkcje eksperymentalne */}
+            <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
-                <Settings size={20} className="me-2" />
-                <span className="fw-semibold">Ustawienia</span>
+                <Info size={20} className="me-2" />
+                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie testowania)</span>
               </Card.Header>
               <Card.Body>
-        {/* Sekcja powiadomień */}
-              <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
-                <Card.Header className="d-flex align-items-center gap-2">
-                  <Info size={20} className="me-2" />
-                  <span className="fw-semibold">Powiadomienia</span>
-                </Card.Header>
-                <Card.Body>
-                  <Form>
-                    <Form.Check
-                      type="switch"
-                      id="notifications-switch"
-                      label="Włącz powiadomienia push"
-                      checked={notificationsEnabled}
-                      onChange={e => handleNotificationToggle(e.target.checked)}
-                      disabled={!user}
-                      style={{ fontWeight: 500, fontSize: "1.1rem" }}
-                    />
-                    {!user && (
-                      <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
-                        Zaloguj się, aby włączyć powiadomienia.
-                      </div>
-                    )}
-                  </Form>
-                </Card.Body>
-              </Card>
-                {/* Dark mode toggle */}
-                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
-                  <Card.Header className="d-flex align-items-center gap-2">
-                    <Info size={20} className="me-2" />
-                    <span className="fw-semibold">Motyw panelu</span>
-                  </Card.Header>
-                  <Card.Body>
-                    <Form>
-                      <Form.Check
-                        type="switch"
-                        id="darkmode-switch"
-                        label="Włącz tryb ciemny (funkcja w trakcie rozwoju)"
-                        checked={darkMode}
-                        onChange={() => setDarkMode((v) => !v)}
-                        style={{ fontWeight: 500, fontSize: "1.1rem" }}
-                      />
-                    </Form>
-                  </Card.Body>
-                </Card>
-                {/* Przeniesiona karta zgłoś błąd */}
-                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
-                  <Card.Header className="d-flex align-items-center gap-2">
-                    <AlertTriangle size={20} className="me-2" />
-                    <span className="fw-semibold">Zgłoś błąd</span>
-                  </Card.Header>
-                  <Card.Body>
-                    <div className="text-center text-muted py-5">
-                      <div>
-                        Formularz zgłaszania błędów będzie dostępny wkrótce.<br />
-                        <span className="mt-2 d-block">
-                          Na razie prosimy o zgłoszenia mailowo na adres:{" "}
-                          <a href="mailto:lukasz.bombala@zhr.pl" style={{ color: "#0d7337", textDecoration: "underline" }}>
-                            lukasz.bombala@zhr.pl
-                          </a>
-                        </span>
-                      </div>
+                <Form>
+                  <Form.Check
+                    type="switch"
+                    id="notifications-switch"
+                    label="Włącz powiadomienia push"
+                    checked={notificationsEnabled}
+                    onChange={e => handleNotificationToggle(e.target.checked)}
+                    disabled={!user}
+                    style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                  />
+                  {!user && (
+                    <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
+                      Zaloguj się, aby włączyć powiadomienia.
                     </div>
-                  </Card.Body>
+                  )}
+                  <Form.Check
+                    type="switch"
+                    id="darkmode-switch"
+                    label="Włącz tryb ciemny"
+                    checked={darkMode}
+                    onChange={() => setDarkMode((v) => !v)}
+                    style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 16 }}
+                  />
+                </Form>
+              </Card.Body>
+            </Card>
+            {/* Przeniesiona karta zgłoś błąd */}
+            <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+              <Card.Header className="d-flex align-items-center gap-2">
+                <AlertTriangle size={20} className="me-2" />
+                <span className="fw-semibold">Zgłoś błąd</span>
+              </Card.Header>
+              <Card.Body>
+                <div className="text-center text-muted py-5">
+                  <div>
+                    Formularz zgłaszania błędów będzie dostępny wkrótce.<br />
+                    <span className="mt-2 d-block">
+                      Na razie prosimy o zgłoszenia mailowo na adres:{" "}
+                      <a href="mailto:lukasz.bombala@zhr.pl" style={{ color: "#0d7337", textDecoration: "underline" }}>
+                        lukasz.bombala@zhr.pl
+                      </a>
+                    </span>
+                  </div>
+                </div>
+              </Card.Body>
                 </Card>
               </Card.Body>
             </Card>
