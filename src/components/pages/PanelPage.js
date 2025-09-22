@@ -1,15 +1,23 @@
 import { React, useState, useMemo, useEffect } from "react";
 import {
-  Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination,
+  Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
 import { Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { useAuth } from "../../AuthContext";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc , getDoc, setDoc} from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import "./PanelPage.css";
+
+import { getMessaging, getToken, onMessage, deleteToken} from "firebase/messaging";
+import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { toast } from "react-toastify";
+
+
+const VAPID_KEY = "BJEDKEq906Kcu6wrniH5ct2lCxQiFueGKZ5DAAqTwKBsdEEBU2OOLn0FwANsqsKgfz5R1yJcFQibQ1Wk-2kpNxk"; 
 
 // Sidebar navigation items
 const NAV = [
@@ -87,6 +95,12 @@ export default function PanelPage() {
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const isDesktopWide = typeof window !== "undefined" ? window.innerWidth >= 992 : false;
 
+  // Powiadomienia push
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const messaging = getMessaging(app);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
   // Firestore data
   const [teams, setTeams] = useState([]);
   const [teamsLoading, setTeamsLoading] = useState(true);
@@ -108,6 +122,72 @@ export default function PanelPage() {
   const [historyDateTo, setHistoryDateTo] = useState("");
 
   const [darkMode, setDarkMode] = useState(false);
+
+
+  // Pobierz preferencję z Firestore (np. w useEffect po zalogowaniu)
+  useEffect(() => {
+    if (user && user.uid) {
+      const userRef = doc(db, "users", user.uid);
+      getDoc(userRef).then(snap => {
+        if (snap.exists() && snap.data().notificationsEnabled) {
+          setNotificationsEnabled(true);
+        }
+      });
+    }
+  }, [user, db]);
+
+  // Funkcja do obsługi zgody i tokenu
+async function handleNotificationToggle(checked) {
+  setNotificationsEnabled(checked);
+  if (checked) {
+    try {
+      const permission = await Notification.requestPermission();
+      console.log("Permission:", permission);
+      if (permission === "granted") {
+        const currentToken = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: await navigator.serviceWorker.ready,
+        });
+        console.log("CurrentToken:", currentToken, "User:", user);
+        if (currentToken && user) {
+          await setDoc(
+            doc(db, "users", user.uid),
+            {
+              fcmTokens: arrayUnion(currentToken),
+              notificationsEnabled: true,
+            },
+            { merge: true }
+          );
+          console.log("Token zapisany w Firestore!");
+          onMessage(messaging, (payload) => {
+            toast.info(`${payload.notification.title}: ${payload.notification.body}`);
+          });
+        }
+      } else {
+        setNotificationsEnabled(false);
+      }
+    } catch (e) {
+      setNotificationsEnabled(false);
+      alert("Nie udało się włączyć powiadomień: " + e.message);
+      console.error(e);
+    }
+  } else if (user) {
+  // Pobierz aktualny token
+  const currentToken = await getToken(messaging, {
+    vapidKey: VAPID_KEY,
+    serviceWorkerRegistration: await navigator.serviceWorker.ready,
+  });
+  // Usuń token z Firestore
+  await setDoc(
+    doc(db, "users", user.uid),
+    { notificationsEnabled: false, fcmTokens: arrayRemove(currentToken) },
+    { merge: true }
+  );
+  // Usuń token z przeglądarki
+  await deleteToken(messaging);
+  console.log("Wyłączono powiadomienia i usunięto token FCM");
+}
+}
 
   // Zapisz preferencję darkmode w localStorage
   useEffect(() => {
@@ -1477,6 +1557,31 @@ export default function PanelPage() {
                 <span className="fw-semibold">Ustawienia</span>
               </Card.Header>
               <Card.Body>
+        {/* Sekcja powiadomień */}
+              <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+                <Card.Header className="d-flex align-items-center gap-2">
+                  <Info size={20} className="me-2" />
+                  <span className="fw-semibold">Powiadomienia</span>
+                </Card.Header>
+                <Card.Body>
+                  <Form>
+                    <Form.Check
+                      type="switch"
+                      id="notifications-switch"
+                      label="Włącz powiadomienia push"
+                      checked={notificationsEnabled}
+                      onChange={e => handleNotificationToggle(e.target.checked)}
+                      disabled={!user}
+                      style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                    />
+                    {!user && (
+                      <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
+                        Zaloguj się, aby włączyć powiadomienia.
+                      </div>
+                    )}
+                  </Form>
+                </Card.Body>
+              </Card>
                 {/* Dark mode toggle */}
                 <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Header className="d-flex align-items-center gap-2">
