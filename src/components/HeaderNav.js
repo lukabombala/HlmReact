@@ -139,6 +139,7 @@ function HeaderNav() {
                     <Button
                       variant="outline-light"
                       size="sm"
+                      title="Wyloguj się"
                       className="d-flex align-items-center gap-1 ms-2"
                       style={{ fontWeight: 500 }}
                       onClick={async () => {
@@ -147,7 +148,7 @@ function HeaderNav() {
                       }}
                     >
                       <LogOut size={16} className="me-1" />
-                      Wyloguj się
+                      {user.email}
                     </Button>
                   </>
                 )}
