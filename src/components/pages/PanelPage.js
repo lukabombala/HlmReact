@@ -16,6 +16,7 @@ import { arrayUnion, arrayRemove } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { toast } from "react-toastify";
 
+import { addPunktacjaEntry } from "../../services/addPunktacjaEntry";
 
 const VAPID_KEY = "BJEDKEq906Kcu6wrniH5ct2lCxQiFueGKZ5DAAqTwKBsdEEBU2OOLn0FwANsqsKgfz5R1yJcFQibQ1Wk-2kpNxk"; 
 
@@ -83,6 +84,12 @@ export default function PanelPage() {
   const [userWeb, setUserWeb] = useState(null);
   const [userWebLoading, setUserWebLoading] = useState(true);
   const [userWebError, setUserWebError] = useState(null);
+  const [addCategoryId, setAddCategoryId] = useState("");
+  const [addScoutPersonId, setAddScoutPersonId] = useState("");
+  const [addPoints, setAddPoints] = useState("");
+  const [addMonth, setAddMonth] = useState("");
+  const [scoringCategories, setScoringCategories] = useState([]);
+  const [addNotes, setAddNotes] = useState("");
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -123,6 +130,20 @@ export default function PanelPage() {
 
   const [darkMode, setDarkMode] = useState(false);
 
+  useEffect(() => {
+    async function fetchCategories() {
+      const db = getFirestore(app);
+      const q = query(collection(db, "scoring_categories"), where("scoringToggle", "==", true));
+      const snap = await getDocs(q);
+      setScoringCategories(
+        snap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      );
+    }
+    fetchCategories();
+  }, []);
 
   // Pobierz preferencję z Firestore (np. w useEffect po zalogowaniu)
   useEffect(() => {
@@ -348,8 +369,52 @@ async function handleNotificationToggle(checked) {
 
   function handleOpenAddModal(scoutId) {
     setAddScoutId(scoutId);
+    setAddCategoryId("");         // resetuj kategorię
+    setAddScoutPersonId("");      // resetuj harcerza
+    setAddPoints("");             // resetuj punkty
+    setAddMonth("");              // resetuj miesiąc
+    setAddNotes("");              // resetuj uwagi
     setShowAddModal(true);
   }
+
+    async function handleAddPointsSubmit(e) {
+  e.preventDefault();
+  const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
+  const selectedScoutTeam = teamScouts.find(z => z.id === addScoutId);
+
+  try {
+    await addPunktacjaEntry({
+      selectedCategory,
+      selectedScoutTeam,
+      points: addPoints,
+      month: addMonth,
+      userEmail: user.email,
+      notes: addNotes,
+      // selectedScoutPerson NIE przekazujemy!
+    });
+
+    setShowAddModal(false);
+
+    // Resetuj wartości pól modala
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+    setAddMonth("");
+    setAddNotes("");
+
+    setPunktacjeLoading(true);
+    punktacjaListAll().then((data) => {
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    });
+
+    console.log("Dodano wpis punktacji!");
+  } catch (err) {
+    alert("Błąd dodawania wpisu: " + err.message);
+    console.error("Błąd dodawania wpisu punktacji:", err);
+    // Modal zostaje otwarty, żeby użytkownik mógł poprawić dane
+  }
+}
 
   // Wybrane dane drużyny
   const selectedTeamData = useMemo(
@@ -1085,67 +1150,131 @@ async function handleNotificationToggle(checked) {
 
                   {/* Modal dodawania punktów */}
                   <Modal show={showAddModal} 
-                         onHide={() => setShowAddModal(false)} 
-                         centered
-                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
-                    <Modal.Header closeButton>
-                      <Modal.Title>Dodaj punkty zastępowi</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                      <Form>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Zastęp</Form.Label>
-                          <Form.Select value={addScoutId || ""} disabled>
-                            <option>Wybierz zastęp</option>
-                            {teamScouts.map((scout) => (
-                              <option key={scout.id} value={scout.id}>{scout.name}</option>
-                            ))}
-                          </Form.Select>
+                      onHide={() => setShowAddModal(false)} 
+                      centered
+                      container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Dodawanie wpisu punktacji</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <Form onSubmit={handleAddPointsSubmit}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Zastęp</Form.Label>
+                        <Form.Select value={addScoutId || ""} disabled>
+                          <option>Wybierz zastęp</option>
+                          {teamScouts.map((scout) => (
+                            <option key={scout.id} value={scout.id}>{scout.name}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                      <Form.Group className="mb-3">
+                      <Form.Label>Kategoria</Form.Label>
+                      <Form.Select
+                        value={addCategoryId}
+                        onChange={e => setAddCategoryId(e.target.value)}
+                        required
+                      >
+                        <option value="">Wybierz kategorię</option>
+                        {scoringCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.scoringName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      {/* Opcjonalnie opis kategorii */}
+                      {addCategoryId && (
+                        <div className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
+                          <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === addCategoryId)?.scoringDesc }} />
+                        </div>
+                      )}
+                    </Form.Group>
+                      {/* Pole harcerz jeśli scoringScoutInd === true */}
+                      {addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd && (
+                      <Form.Group className="mb-3">
+                      <Form.Label>Harcerz</Form.Label>
+                      <Form.Select
+                        value={addScoutPersonId}
+                        onChange={e => setAddScoutPersonId(e.target.value)}
+                        required={scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd}
+                        disabled={!scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd}
+                      >
+                        <option value="">Wybierz harcerza</option>
+                        {zastepy.find(z => z.id === addScoutId)?.harcerze?.map(h => (
+                          <option key={h.id} value={h.id}>{h.name} {h.surname}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                    )}
+                      <Row>
+                        <Col>
+                          <Form.Group className="mb-3">
+                          <Form.Label>
+                            Punkty ({addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringMaxVal
+                              ? `1-${scoringCategories.find(cat => cat.id === addCategoryId).scoringMaxVal}`
+                              : "1-10"})
+                          </Form.Label>
+                          <Form.Control
+                            type="number"
+                            min={1}
+                            max={addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringMaxVal
+                              ? scoringCategories.find(cat => cat.id === addCategoryId).scoringMaxVal
+                              : 10}
+                            value={addPoints}
+                            onChange={e => setAddPoints(e.target.value)}
+                            required
+                          />
                         </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Kategoria</Form.Label>
-                          <Form.Select>
-                            <option>Wybierz kategorię</option>
-                            <option>Sprawność harcerska</option>
-                            <option>Gra terenowa</option>
-                            <option>Konkurs/zawody</option>
-                            <option>Organizacja działania</option>
-                            <option>Służba harcerska</option>
-                            <option>Inne działania</option>
-                          </Form.Select>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Opis działania</Form.Label>
-                          <Form.Control as="textarea" rows={2} />
-                        </Form.Group>
-                        <Row>
-                          <Col>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Punkty (1-10)</Form.Label>
-                              <Form.Control type="number" min={1} max={10} />
-                            </Form.Group>
-                          </Col>
-                          <Col>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Data</Form.Label>
-                              <Form.Control type="date" />
-                            </Form.Group>
-                          </Col>
-                        </Row>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Klasyfikacja miesięczna</Form.Label>
-                          <Form.Control type="month" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Uwagi (opcjonalne)</Form.Label>
-                          <Form.Control as="textarea" rows={2} />
-                        </Form.Group>
-                        <Button variant="primary" className="w-100" disabled>
-                          Dodaj punkty
-                        </Button>
-                      </Form>
-                    </Modal.Body>
-                  </Modal>
+                        </Col>
+                        <Col>
+                          <Form.Group className="mb-3">
+                            <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                            <Form.Select
+                              value={addMonth}
+                              onChange={e => setAddMonth(e.target.value)}
+                              required
+                            >
+                              <option value="">Wybierz miesiąc</option>
+                              <option value="202509">wrzesień 2025</option>
+                              <option value="202510">październik 2025</option>
+                              <option value="202511">listopad 2025</option>
+                              <option value="202512">grudzień 2025</option>
+                              <option value="202601">styczeń 2026</option>
+                              <option value="202602">luty 2026</option>
+                              <option value="202603">marzec 2026</option>
+                              <option value="202604">kwiecień 2026</option>
+                              <option value="202605">maj 2026</option>
+                              <option value="202606">czerwiec 2026</option>
+                            </Form.Select>
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                      <Form.Group className="mb-3">
+                      <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={addNotes}
+                        onChange={e => setAddNotes(e.target.value)}
+                        placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                      />
+                    </Form.Group>
+                      <Button
+                      type="submit"
+                      variant="primary"
+                      className="w-100"
+                      disabled={
+                        !addCategoryId ||
+                        !addScoutId ||
+                        !addPoints ||
+                        !addMonth ||
+                        (scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd && !addScoutPersonId)
+                      }
+                    >
+                      Dodaj punkty
+                    </Button>
+                    </Form>
+                  </Modal.Body>
+                </Modal>
                 </>
               )}
             </>

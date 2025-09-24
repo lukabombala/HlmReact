@@ -17,7 +17,7 @@ import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Modal } from "react-bootstrap";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
-
+import "./ZastepDetailPage.css";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
 const PLACEHOLDER_LOGO = logoPlaceholder;
@@ -376,13 +376,15 @@ export default function ZastepDetailPage() {
                     bordered
                     hover
                     responsive
-                    className="align-middle"
+                    className="align-middle punktacja-bordered"
                     style={{
                       borderCollapse: "separate",
                       borderSpacing: 0,
                       fontSize: "1.05rem",
                       border: "2px solid #dee2e6",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                      borderTop: "2px solid #dee2e6",
+                      borderBottom: "2px solid #dee2e6"
                     }}
                   >
                     <thead>
@@ -401,11 +403,16 @@ export default function ZastepDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pointsTable.map(row => (
-                        <tr key={row.catId}>
+                      {pointsTable.map((row, idx) => (
+                        <tr
+                          key={row.catId}
+                          style={{
+                            borderBottom: "2px solid #dee2e6"
+                          }}
+                        >
                           <td className="text-center align-middle fw-semibold" style={{ background: "#f8fafc" }}>{row.catName}</td>
-                          {row.points.map((pt, idx) => (
-                            <td key={idx} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
+                          {row.points.map((pt, idx2) => (
+                            <td key={idx2} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
                           ))}
                           <td className="fw-bold text-center align-middle" style={{ background: "#f8fafc" }}>{row.total}</td>
                         </tr>
