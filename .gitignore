@@ -30,3 +30,4 @@ src/main_config.json
 .anima/workspace.json
 .anima/conventions.json
 firebase-debug.log
+public/firebase-messaging-sw.js
