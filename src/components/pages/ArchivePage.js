@@ -16,10 +16,21 @@ export default function ArchivePage() {
       setArchive(res);
       setLoading(false);
 
-      // Wyciągnij unikalne sezony 
-      const seasons = Array.from(new Set(res.map(r => r.sezon))).sort().reverse();
-      setSeasonOptions(seasons);
-      if (seasons.length && !selectedSeason) setSelectedSeason(seasons[0]);
+      // Wyciągnij unikalne sezony
+      const seasons = Array.from(new Set(res.map(r => r.sezon)));
+      // Sortowanie: najpierw po roku malejąco, potem te bez liczby na końcu
+      const sortedSeasons = seasons.sort((a, b) => {
+        const yearA = parseInt(a.slice(-4));
+        const yearB = parseInt(b.slice(-4));
+        const isNumA = !isNaN(yearA);
+        const isNumB = !isNaN(yearB);
+        if (isNumA && isNumB) return yearB - yearA;
+        if (isNumA) return -1;
+        if (isNumB) return 1;
+        return 0;
+      });
+      setSeasonOptions(sortedSeasons);
+      if (sortedSeasons.length && !selectedSeason) setSelectedSeason(sortedSeasons[0]);
     }
     fetchData();
     // eslint-disable-next-line
