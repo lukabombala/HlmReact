@@ -1,0 +1,105 @@
+.panel-darkmode,
+.panel-darkmode .card,
+.panel-darkmode .card-header,
+.panel-darkmode .card-body,
+.panel-darkmode .table,
+.panel-darkmode .form-label,
+.panel-darkmode .form-control,
+.panel-darkmode .form-select,
+.panel-darkmode .modal-content,
+.panel-darkmode .alert,
+.panel-darkmode .badge,
+.panel-darkmode .text-muted,
+.panel-darkmode .fw-semibold,
+.panel-darkmode .fw-bold,
+.panel-darkmode .text-center,
+.panel-darkmode .text-xs,
+.panel-darkmode .text-primary,
+.panel-darkmode .text-secondary,
+.panel-darkmode .form-check-label {
+  color: #e5e7eb !important;
+  background-color: #232326 !important;
+  border-color: #333 !important;
+}
+
+.panel-darkmode .table th,
+.panel-darkmode .table td {
+  color: #e5e7eb !important;
+  background-color: #232326 !important;
+  border-color: #333 !important;
+}
+
+.panel-darkmode .form-control,
+.panel-darkmode .form-select {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
+  border-color: #333 !important;
+}
+
+.panel-darkmode .badge.bg-primary {
+  background-color: #0d7337 !important;
+  color: #fff !important;
+}
+
+.panel-darkmode .alert-info {
+  background-color: #1e293b !important;
+  color: #e5e7eb !important;
+}
+
+.panel-darkmode .alert-danger {
+  background-color: #7f1d1d !important;
+  color: #fff !important;
+}
+
+.panel-darkmode .alert-success {
+  background-color: #166534 !important;
+  color: #fff !important;
+}
+
+/* Dodatkowe poprawki dla linków */
+.panel-darkmode a {
+  color: #38bdf8 !important;
+}
+
+.panel-darkmode .bg-light {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
+  border-color: #333 !important;
+}
+
+/* Dodatkowo, dla border i tekstu w rekordach */
+.panel-darkmode .border {
+  border-color: #333 !important;
+}
+
+.panel-darkmode .modal-content,
+.panel-darkmode .modal-header,
+.panel-darkmode .modal-body,
+.panel-darkmode .modal-footer {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
+  border-color: #333 !important;
+}
+
+.panel-darkmode .modal-title,
+.panel-darkmode .modal-header .btn-close {
+  color: #e5e7eb !important;
+  filter: invert(1);
+}
+
+.panel-darkmode .modal-footer .btn,
+.panel-darkmode .modal-body .btn {
+  /* Przyciski w modalu pozostają kolorowe */
+  background: unset !important;
+  color: unset !important;
+  border-color: unset !important;
+}
+
+/* Dla inputów, selectów i textarea w modalu */
+.panel-darkmode .modal-body .form-control,
+.panel-darkmode .modal-body .form-select,
+.panel-darkmode .modal-body textarea {
+  background-color: #232326 !important;
+  color: #e5e7eb !important;
+  border-color: #333 !important;
+}

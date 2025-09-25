@@ -1,20 +1,30 @@
 import { React, useState, useMemo, useEffect } from "react";
 import {
-  Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination,
+  Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { useAuth } from "../../AuthContext";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc , getDoc, setDoc} from "firebase/firestore";
 import { app } from "../../firebaseConfig";
+import "./PanelPage.css";
+
+import { getMessaging, getToken, onMessage, deleteToken} from "firebase/messaging";
+import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { toast } from "react-toastify";
+
+import { addPunktacjaEntry } from "../../services/addPunktacjaEntry";
+
+const VAPID_KEY = "BJEDKEq906Kcu6wrniH5ct2lCxQiFueGKZ5DAAqTwKBsdEEBU2OOLn0FwANsqsKgfz5R1yJcFQibQ1Wk-2kpNxk"; 
 
 // Sidebar navigation items
 const NAV = [
   { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
   { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
-  { key: "report", label: "Zgłoś błąd", icon: <AlertTriangle size={18} className="me-2" /> },
+  { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, 
 ];
 
 // Pomocnicza funkcja do formatu miesiąca
@@ -28,6 +38,25 @@ function getMonthLabelFromKey(key) {
   ];
   return `${labels[m]} ${year}`;
 }
+
+// Dodaj styl dla darkmode
+const darkModeStyles = {
+  background: "#18181b",
+  color: "#e5e7eb",
+};
+const darkCardStyle = {
+  background: "#232326",
+  color: "#e5e7eb",
+  borderColor: "#333",
+};
+const darkTableStyle = {
+  background: "#232326",
+  color: "#e5e7eb",
+  borderColor: "#333",
+};
+const darkTextStyle = {
+  color: "#e5e7eb"
+};
 
 export default function PanelPage() {
   const [tab, setTab] = useState("team");
@@ -55,6 +84,12 @@ export default function PanelPage() {
   const [userWeb, setUserWeb] = useState(null);
   const [userWebLoading, setUserWebLoading] = useState(true);
   const [userWebError, setUserWebError] = useState(null);
+  const [addCategoryId, setAddCategoryId] = useState("");
+  const [addScoutPersonId, setAddScoutPersonId] = useState("");
+  const [addPoints, setAddPoints] = useState("");
+  const [addMonth, setAddMonth] = useState("");
+  const [scoringCategories, setScoringCategories] = useState([]);
+  const [addNotes, setAddNotes] = useState("");
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -66,6 +101,12 @@ export default function PanelPage() {
   // Responsive helpers
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const isDesktopWide = typeof window !== "undefined" ? window.innerWidth >= 992 : false;
+
+  // Powiadomienia push
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const messaging = getMessaging(app);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
 
   // Firestore data
   const [teams, setTeams] = useState([]);
@@ -87,6 +128,97 @@ export default function PanelPage() {
   const [historyDateFrom, setHistoryDateFrom] = useState("");
   const [historyDateTo, setHistoryDateTo] = useState("");
 
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      const db = getFirestore(app);
+      const q = query(collection(db, "scoring_categories"), where("scoringToggle", "==", true));
+      const snap = await getDocs(q);
+      setScoringCategories(
+        snap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      );
+    }
+    fetchCategories();
+  }, []);
+
+  // Pobierz preferencję z Firestore (np. w useEffect po zalogowaniu)
+  useEffect(() => {
+    if (user && user.uid) {
+      const userRef = doc(db, "users", user.uid);
+      getDoc(userRef).then(snap => {
+        if (snap.exists() && snap.data().notificationsEnabled) {
+          setNotificationsEnabled(true);
+        }
+      });
+    }
+  }, [user, db]);
+
+  // Funkcja do obsługi zgody i tokenu
+async function handleNotificationToggle(checked) {
+  setNotificationsEnabled(checked);
+  if (checked) {
+    try {
+      const permission = await Notification.requestPermission();
+      console.log("Permission:", permission);
+      if (permission === "granted") {
+        const currentToken = await getToken(messaging, {
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: await navigator.serviceWorker.ready,
+        });
+        console.log("CurrentToken:", currentToken, "User:", user);
+        if (currentToken && user) {
+          await setDoc(
+            doc(db, "users", user.uid),
+            {
+              fcmTokens: arrayUnion(currentToken),
+              notificationsEnabled: true,
+            },
+            { merge: true }
+          );
+          console.log("Token zapisany w Firestore!");
+          onMessage(messaging, (payload) => {
+            toast.info(`${payload.notification.title}: ${payload.notification.body}`);
+          });
+        }
+      } else {
+        setNotificationsEnabled(false);
+      }
+    } catch (e) {
+      setNotificationsEnabled(false);
+      alert("Nie udało się włączyć powiadomień: " + e.message);
+      console.error(e);
+    }
+  } else if (user) {
+  // Pobierz aktualny token
+  const currentToken = await getToken(messaging, {
+    vapidKey: VAPID_KEY,
+    serviceWorkerRegistration: await navigator.serviceWorker.ready,
+  });
+  // Usuń token z Firestore
+  await setDoc(
+    doc(db, "users", user.uid),
+    { notificationsEnabled: false, fcmTokens: arrayRemove(currentToken) },
+    { merge: true }
+  );
+  // Usuń token z przeglądarki
+  await deleteToken(messaging);
+  console.log("Wyłączono powiadomienia i usunięto token FCM");
+}
+}
+
+  // Zapisz preferencję darkmode w localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("panelDarkMode");
+    if (stored === "true") setDarkMode(true);
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("panelDarkMode", darkMode ? "true" : "false");
+  }, [darkMode]);
+  
   // Ustaw domyślną drużynę dla admina z jednostką LUB zwykłego użytkownika z jednostką
   useEffect(() => {
     if (
@@ -137,47 +269,65 @@ export default function PanelPage() {
     }
   }, [userWeb, teams]);
 
-async function handleRequestAccess(e) {
-  e.preventDefault();
-  if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
-  setRequestSubmitting(true);
-  try {
+  async function getMailingRecipientsFromFirestore() {
     const db = getFirestore(app);
-    const docRef = doc(db, "usersWeb", userWeb._docId);
-    const unitObj = teams.find(t => t.id === requestUnitId);
-    const jednostkaNazwa = unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "";
-
-    await updateDoc(docRef, {
-      active: jednostkaNazwa,
-      funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+    const mailingsSnap = await getDocs(collection(db, "mailings"));
+    const recipients = [];
+    mailingsSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.user && Array.isArray(data.user) && data.user[0]?.snapshot?.email) {
+        recipients.push(data.user[0].snapshot.email);
+      }
     });
-    setRequestSuccess(true);
+    return recipients;
+  }
 
-    // Wyślij maila o nowym wniosku
-    await fetch("http://localhost:3001/api/send-account-request", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jednostka: jednostkaNazwa,
-        funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
-        name: user?.displayName || "",
-        email: user?.email || ""
-      })
-    });
+  // Obsługa wysyłki wniosku o dostęp
+  async function handleRequestAccess(e) {
+    e.preventDefault();
+    if (!requestUnitId || !requestRole || (requestRole === "inna" && !requestOtherRole)) return;
+    setRequestSubmitting(true);
+    try {
+      const db = getFirestore(app);
+      const docRef = doc(db, "usersWeb", userWeb._docId);
+      const unitObj = teams.find(t => t.id === requestUnitId);
+      const jednostkaNazwa = unitObj?.shortName || unitObj?.name || unitObj?.nazwa || "";
 
-    // Odśwież dane użytkownika
-    setTimeout(() => {
-      setUserWeb({
-        ...userWeb,
+      await updateDoc(docRef, {
         active: jednostkaNazwa,
         funkcja: requestRole === "inna" ? requestOtherRole : requestRole
       });
-    }, 1000);
-  } catch (err) {
-    setUserWebError("Błąd wysyłania wniosku: " + err.message);
+      setRequestSuccess(true);
+
+      // Pobierz odbiorców z Firestore
+      const recipients = await getMailingRecipientsFromFirestore();
+
+      // Wyślij maila przez endpoint Vercel
+      await fetch("/api/send-account-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jednostka: jednostkaNazwa,
+          funkcja: requestRole === "inna" ? requestOtherRole : requestRole,
+          name: user?.displayName || "",
+          email: user?.email || "",
+          recipients
+        })
+      });
+
+      // Odśwież dane użytkownika
+      setTimeout(() => {
+        setUserWeb({
+          ...userWeb,
+          active: jednostkaNazwa,
+          funkcja: requestRole === "inna" ? requestOtherRole : requestRole
+        });
+      }, 1000);
+    } catch (err) {
+      setUserWebError("Błąd wysyłania wniosku: " + err.message);
+    }
+    setRequestSubmitting(false);
   }
-  setRequestSubmitting(false);
-}
 
   // Pobierz drużyny z Firestore
   useEffect(() => {
@@ -196,7 +346,7 @@ async function handleRequestAccess(e) {
       setZastepyLoading(false);
     });
   }, []);
-
+  
   // Pobierz punktacje z Firestore
   useEffect(() => {
     setPunktacjeLoading(true);
@@ -219,8 +369,52 @@ async function handleRequestAccess(e) {
 
   function handleOpenAddModal(scoutId) {
     setAddScoutId(scoutId);
+    setAddCategoryId("");         // resetuj kategorię
+    setAddScoutPersonId("");      // resetuj harcerza
+    setAddPoints("");             // resetuj punkty
+    setAddMonth("");              // resetuj miesiąc
+    setAddNotes("");              // resetuj uwagi
     setShowAddModal(true);
   }
+
+    async function handleAddPointsSubmit(e) {
+  e.preventDefault();
+  const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
+  const selectedScoutTeam = teamScouts.find(z => z.id === addScoutId);
+
+  try {
+    await addPunktacjaEntry({
+      selectedCategory,
+      selectedScoutTeam,
+      points: addPoints,
+      month: addMonth,
+      userEmail: user.email,
+      notes: addNotes,
+      // selectedScoutPerson NIE przekazujemy!
+    });
+
+    setShowAddModal(false);
+
+    // Resetuj wartości pól modala
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+    setAddMonth("");
+    setAddNotes("");
+
+    setPunktacjeLoading(true);
+    punktacjaListAll().then((data) => {
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    });
+
+    console.log("Dodano wpis punktacji!");
+  } catch (err) {
+    alert("Błąd dodawania wpisu: " + err.message);
+    console.error("Błąd dodawania wpisu punktacji:", err);
+    // Modal zostaje otwarty, żeby użytkownik mógł poprawić dane
+  }
+}
 
   // Wybrane dane drużyny
   const selectedTeamData = useMemo(
@@ -418,15 +612,15 @@ async function handleRequestAccess(e) {
   }
 
   const allZastepyRanking = useMemo(() => {
-  // Zlicz sumę punktów dla każdego zastępu ze wszystkich drużyn
-  const zastepPoints = zastepy.map(z => {
-    const zPunktacje = punktacje.filter(
-      (p) => p.scoreTeam && p.scoreTeam[0]?.id === z.id
-    );
-    return {
-      id: z.id,
-      points: zPunktacje.reduce((sum, p) => sum + (p.scoreValue || 0), 0),
-    };
+    // Zlicz sumę punktów dla każdego zastępu ze wszystkich drużyn
+    const zastepPoints = zastepy.map(z => {
+      const zPunktacje = punktacje.filter(
+        (p) => p.scoreTeam && p.scoreTeam[0]?.id === z.id
+      );
+      return {
+        id: z.id,
+        points: zPunktacje.reduce((sum, p) => sum + (p.scoreValue || 0), 0),
+      };
     });
     // Posortuj malejąco po punktach
     zastepPoints.sort((a, b) => b.points - a.points);
@@ -467,19 +661,27 @@ async function handleRequestAccess(e) {
   // --- KONIEC LOGIKI DOSTĘPU ---
   
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "#f8f9fa" }}>
+    <div
+      className={darkMode ? "panel-darkmode" : ""}
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        ...(darkMode ? darkModeStyles : { background: "#f8f9fa" }),
+      }}
+    >
       {/* Sidebar for desktop */}
       <aside
         className="d-none d-md-block"
         style={{
           width: 230,
-          background: "#fff",
-          borderRight: "1px solid #e5e7eb",
+          background: darkMode ? "#232326" : "#fff",
+          borderRight: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
           padding: "2.5rem 0 2.5rem 0",
           minHeight: "100vh",
           position: "sticky",
           top: 0,
           zIndex: 2,
+          color: darkMode ? "#e5e7eb" : undefined,
         }}
       >
         <div className="d-flex flex-column align-items-stretch h-100">
@@ -519,9 +721,10 @@ async function handleRequestAccess(e) {
           left: 0,
           right: 0,
           height: 54,
-          background: "#fff",
-          borderBottom: "1px solid #e5e7eb",
+          background: darkMode ? "#232326" : "#fff",
+          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
           zIndex: 100,
+          color: darkMode ? "#e5e7eb" : undefined,
         }}
       >
         {NAV.map((item) => (
@@ -550,12 +753,14 @@ async function handleRequestAccess(e) {
       {/* Main content */}
       <Container
         fluid
+        
         style={{
           maxWidth: "100%",
           margin: "0 auto",
           padding: "0 2rem",
           flex: 1,
           marginTop: isMobile ? 145 : "6rem",
+          ...(darkMode ? darkModeStyles : {}),
         }}
       >
         <div style={{ maxWidth: "100%", margin: "0 auto", marginBottom: "3rem" }}>
@@ -576,15 +781,15 @@ async function handleRequestAccess(e) {
           {!authLoading && !userWebLoading && tab === "team" && (
             <>
               <div className="mb-4">
-                <h1 className="fw-bold mb-2" style={{ fontSize: "2rem" }}>Panel Drużynowego</h1>
-                <div className="text-muted mb-3">
+                <h1 className="fw-bold mb-2" style={{ fontSize: "2rem", ...(darkMode ? darkTextStyle : {}) }}>Panel Drużynowego</h1>
+                <div className="text-muted mb-3" style={darkMode ? darkTextStyle : {}}>
                   Zarządzaj punktacją zastępów w Twojej drużynie.
                 </div>
               </div>
 
               {/* --- ADMIN BEZ JEDNOSTKI: WYBÓR DRUŻYNY --- */}
               {showTeamSelect && (
-                <Card className="mb-4">
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Header className="d-flex align-items-center gap-2">
                     <Users size={20} className="me-2" />
                     <span className="fw-semibold">Wybierz drużynę do zarządzania</span>
@@ -612,10 +817,7 @@ async function handleRequestAccess(e) {
 
               {/* --- ZWYKŁY UŻYTKOWNIK BEZ JEDNOSTKI: FORMULARZ WNIOSKU O DOSTĘP --- */}
               {showRequestForm && (
-                <Card className="mb-4">
-                  <Card.Header>
-                    <span className="fw-semibold">Nowe konto utworzone</span>
-                  </Card.Header>
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Body>
                     <Alert variant="info">
                       Twoje konto zostało utworzone.<br />
@@ -699,12 +901,12 @@ async function handleRequestAccess(e) {
 
               {/* --- ADMIN Z JEDNOSTKĄ: WYBÓR DRUŻYNY (DOMYŚLNIE USTAWIONA) --- */}
               {showTeamSelectForAdminWithUnit && (
-                <Card className="mb-4">
+                <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                   <Card.Header className="d-flex align-items-center gap-2">
                     <Users size={20} className="me-2" />
                     <span className="fw-semibold">Wybierz drużynę</span>
                   </Card.Header>
-                  <Card.Body>
+                  <Card.Body style={darkMode ? darkCardStyle : {}}>
                     {teamsLoading ? (
                       <Spinner animation="border" />
                     ) : (
@@ -733,7 +935,7 @@ async function handleRequestAccess(e) {
               ) && (
                 <>
                   {/* Statystyki drużyny */}
-                  <Card className="mb-4">
+                  <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                     <Card.Header className="d-flex align-items-center justify-content-between">
                       <span className="fw-semibold">
                         Moja drużyna: {selectedTeamData?.shortName || selectedTeamData?.name || selectedTeamData?.nazwa}
@@ -748,7 +950,7 @@ async function handleRequestAccess(e) {
                         Edycja drużyny
                       </Button>
                     </Card.Header>
-                    <Card.Body>
+                    <Card.Body style={darkMode ? darkCardStyle : {}}>
                     <Row>
                       <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
                         <div className="fs-2 fw-bold text-primary me-3">{teamScouts.length}</div>
@@ -771,7 +973,10 @@ async function handleRequestAccess(e) {
                   </Card>
 
                   {/* Modal edycji drużyny */}
-                  <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+                  <Modal show={showEditModal} 
+                         onHide={() => setShowEditModal(false)} 
+                         centered
+                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                     <Modal.Header closeButton>
                       <Modal.Title>Prośba o edycję danych drużyny</Modal.Title>
                     </Modal.Header>
@@ -806,13 +1011,13 @@ async function handleRequestAccess(e) {
                   </Modal>
 
                   {/* Lista zastępów */}
-                  <Card className="mb-4">
+                  <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                     <Card.Header className="d-flex align-items-center gap-2">
                       <Trophy size={20} className="me-2" />
                       <span className="fw-semibold">Moje zastępy</span>
                     </Card.Header>
-                    <Card.Body>
-                      <Table bordered responsive>
+                    <Card.Body style={darkMode ? darkCardStyle : {}}>
+                      <Table bordered responsive >
                       <thead>
                           <tr>
                           <th>Zastęp</th>
@@ -884,7 +1089,10 @@ async function handleRequestAccess(e) {
                       </tbody>
                     </Table>
 
-                    <Modal show={showScoutInfoModal} onHide={() => setShowScoutInfoModal(false)} centered>
+                    <Modal show={showScoutInfoModal} 
+                           onHide={() => setShowScoutInfoModal(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>
                           {scoutInfoData?.fullName || scoutInfoData?.name || "Informacje o zastępie"}
@@ -941,72 +1149,147 @@ async function handleRequestAccess(e) {
                   </Card>
 
                   {/* Modal dodawania punktów */}
-                  <Modal show={showAddModal} onHide={() => setShowAddModal(false)} centered>
-                    <Modal.Header closeButton>
-                      <Modal.Title>Dodaj punkty zastępowi</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                      <Form>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Zastęp</Form.Label>
-                          <Form.Select value={addScoutId || ""} disabled>
-                            <option>Wybierz zastęp</option>
-                            {teamScouts.map((scout) => (
-                              <option key={scout.id} value={scout.id}>{scout.name}</option>
-                            ))}
-                          </Form.Select>
+                  <Modal show={showAddModal} 
+                      onHide={() => setShowAddModal(false)} 
+                      centered
+                      container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Dodawanie wpisu punktacji</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <Form onSubmit={handleAddPointsSubmit}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Zastęp</Form.Label>
+                        <Form.Select value={addScoutId || ""} disabled>
+                          <option>Wybierz zastęp</option>
+                          {teamScouts.map((scout) => (
+                            <option key={scout.id} value={scout.id}>{scout.name}</option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                      <Form.Group className="mb-3">
+                      <Form.Label>Kategoria</Form.Label>
+                      <Form.Select
+                        value={addCategoryId}
+                        onChange={e => setAddCategoryId(e.target.value)}
+                        required
+                      >
+                        <option value="">Wybierz kategorię</option>
+                        {scoringCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.scoringName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      {/* Opcjonalnie opis kategorii */}
+                      {addCategoryId && (
+                        <div className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
+                          <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === addCategoryId)?.scoringDesc }} />
+                        </div>
+                      )}
+                    </Form.Group>
+                      {/* Pole harcerz jeśli scoringScoutInd === true */}
+                      {addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd && (
+                      <Form.Group className="mb-3">
+                      <Form.Label>Harcerz</Form.Label>
+                      <Form.Select
+                        value={addScoutPersonId}
+                        onChange={e => setAddScoutPersonId(e.target.value)}
+                        required={scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd}
+                        disabled={!scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd}
+                      >
+                        <option value="">Wybierz harcerza</option>
+                        {zastepy.find(z => z.id === addScoutId)?.harcerze?.map(h => (
+                          <option key={h.id} value={h.id}>{h.name} {h.surname}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                    )}
+                      <Row>
+                        <Col>
+                          <Form.Group className="mb-3">
+                          <Form.Label>
+                            Punkty ({addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringMaxVal
+                              ? `1-${scoringCategories.find(cat => cat.id === addCategoryId).scoringMaxVal}`
+                              : "1-10"})
+                          </Form.Label>
+                          <Form.Control
+                            type="number"
+                            min={1}
+                            max={addCategoryId && scoringCategories.find(cat => cat.id === addCategoryId)?.scoringMaxVal
+                              ? scoringCategories.find(cat => cat.id === addCategoryId).scoringMaxVal
+                              : 10}
+                            value={addPoints}
+                            onChange={e => setAddPoints(e.target.value)}
+                            required
+                          />
                         </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Kategoria</Form.Label>
-                          <Form.Select>
-                            <option>Wybierz kategorię</option>
-                            <option>Sprawność harcerska</option>
-                            <option>Gra terenowa</option>
-                            <option>Konkurs/zawody</option>
-                            <option>Organizacja działania</option>
-                            <option>Służba harcerska</option>
-                            <option>Inne działania</option>
-                          </Form.Select>
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Opis działania</Form.Label>
-                          <Form.Control as="textarea" rows={2} />
-                        </Form.Group>
-                        <Row>
-                          <Col>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Punkty (1-10)</Form.Label>
-                              <Form.Control type="number" min={1} max={10} />
-                            </Form.Group>
-                          </Col>
-                          <Col>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Data</Form.Label>
-                              <Form.Control type="date" />
-                            </Form.Group>
-                          </Col>
-                        </Row>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Klasyfikacja miesięczna</Form.Label>
-                          <Form.Control type="month" />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                          <Form.Label>Uwagi (opcjonalne)</Form.Label>
-                          <Form.Control as="textarea" rows={2} />
-                        </Form.Group>
-                        <Button variant="primary" className="w-100" disabled>
-                          Dodaj punkty
-                        </Button>
-                      </Form>
-                    </Modal.Body>
-                  </Modal>
+                        </Col>
+                        <Col>
+                          <Form.Group className="mb-3">
+                            <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                            <Form.Select
+                              value={addMonth}
+                              onChange={e => setAddMonth(e.target.value)}
+                              required
+                            >
+                              <option value="">Wybierz miesiąc</option>
+                              <option value="202509">wrzesień 2025</option>
+                              <option value="202510">październik 2025</option>
+                              <option value="202511">listopad 2025</option>
+                              <option value="202512">grudzień 2025</option>
+                              <option value="202601">styczeń 2026</option>
+                              <option value="202602">luty 2026</option>
+                              <option value="202603">marzec 2026</option>
+                              <option value="202604">kwiecień 2026</option>
+                              <option value="202605">maj 2026</option>
+                              <option value="202606">czerwiec 2026</option>
+                            </Form.Select>
+                          </Form.Group>
+                        </Col>
+                      </Row>
+                      <Form.Group className="mb-3">
+                      <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={addNotes}
+                        onChange={e => setAddNotes(e.target.value)}
+                        placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                      />
+                    </Form.Group>
+                      <Button
+                      type="submit"
+                      variant="primary"
+                      className="w-100"
+                      disabled={
+                        !addCategoryId ||
+                        !addScoutId ||
+                        !addPoints ||
+                        !addMonth ||
+                        (scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd && !addScoutPersonId)
+                      }
+                    >
+                      Dodaj punkty
+                    </Button>
+                    </Form>
+                  </Modal.Body>
+                </Modal>
                 </>
               )}
             </>
           )}
 
           {tab === "history" && (
-            <Card>
+          <Container fluid style={{
+            maxWidth: "100%",
+            margin: "0 auto",
+            padding: "0",
+            flex: 1,
+            marginTop: isMobile ? 0 : 0,
+            ...(darkMode ? darkModeStyles : {}),
+          }}>
+            <Card style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <FileText size={20} className="me-2" />
                 <span className="fw-semibold">Historia wpisów punktacji</span>
@@ -1021,7 +1304,7 @@ async function handleRequestAccess(e) {
                   {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </Button>
               </Card.Header>
-              <Card.Body>
+              <Card.Body style={darkMode ? darkCardStyle : {}}>
                 <Collapse in={showFilters || !isMobile}>
                   <div>
                     <Row className="g-3 mb-3">
@@ -1158,7 +1441,7 @@ async function handleRequestAccess(e) {
                 ) : (
                   <>
                     {/* Lista wpisów punktacji w stylu kart, 2 kolumny na desktop */}
-                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
+                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"} >
                       {paginatedHistoryRecords.map((rec) => (
                         <div
                           key={rec.id}
@@ -1247,7 +1530,10 @@ async function handleRequestAccess(e) {
                     </div>
 
                     {/* Modal z uwagami */}
-                    <Modal show={showNotesModal} onHide={() => setShowNotesModal(false)} centered>
+                    <Modal show={showNotesModal} 
+                           onHide={() => setShowNotesModal(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{notesTitle}</Modal.Title>
                       </Modal.Header>
@@ -1277,7 +1563,10 @@ async function handleRequestAccess(e) {
                       </div>
                     )}
                     {/* Modal z opisem kategorii */}
-                    <Modal show={showCatDesc} onHide={() => setShowCatDesc(false)} centered>
+                    <Modal show={showCatDesc} 
+                           onHide={() => setShowCatDesc(false)} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{catDescTitle}</Modal.Title>
                       </Modal.Header>
@@ -1286,7 +1575,10 @@ async function handleRequestAccess(e) {
                       </Modal.Body>
                     </Modal>
                     {/* Modal edycji wpisu */}
-                    <Modal show={showEditEntryModal} onHide={closeEditEntryModal} centered>
+                    <Modal show={showEditEntryModal} 
+                           onHide={closeEditEntryModal} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Edytuj wpis punktacji</Modal.Title>
                       </Modal.Header>
@@ -1370,7 +1662,10 @@ async function handleRequestAccess(e) {
                       </Modal.Body>
                     </Modal>
                     {/* Modal usuwania wpisu */}
-                    <Modal show={showDeleteEntryModal} onHide={closeDeleteEntryModal} centered>
+                    <Modal show={showDeleteEntryModal} 
+                           onHide={closeDeleteEntryModal} 
+                           centered
+                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Usuń wpis punktacji</Modal.Title>
                       </Modal.Header>
@@ -1402,18 +1697,69 @@ async function handleRequestAccess(e) {
                 )}
               </Card.Body>
             </Card>
+            </Container>
           )}
 
-          {tab === "report" && (
-            <Card>
+            {tab === "settings" && (
+        <Card style={darkMode ? darkCardStyle : {}}>
+          <Card.Header className="d-flex align-items-center gap-2">
+            <Settings size={20} className="me-2" />
+            <span className="fw-semibold">Ustawienia</span>
+          </Card.Header>
+          <Card.Body>
+            {/* Karta: Funkcje eksperymentalne */}
+            <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+              <Card.Header className="d-flex align-items-center gap-2">
+                <Info size={20} className="me-2" />
+                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie testowania)</span>
+              </Card.Header>
+              <Card.Body>
+                <Form>
+                  <Form.Check
+                    type="switch"
+                    id="notifications-switch"
+                    label="Włącz powiadomienia push"
+                    checked={notificationsEnabled}
+                    onChange={e => handleNotificationToggle(e.target.checked)}
+                    disabled={!user}
+                    style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                  />
+                  {!user && (
+                    <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
+                      Zaloguj się, aby włączyć powiadomienia.
+                    </div>
+                  )}
+                  <Form.Check
+                    type="switch"
+                    id="darkmode-switch"
+                    label="Włącz tryb ciemny"
+                    checked={darkMode}
+                    onChange={() => setDarkMode((v) => !v)}
+                    style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 16 }}
+                  />
+                </Form>
+              </Card.Body>
+            </Card>
+            {/* Przeniesiona karta zgłoś błąd */}
+            <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <AlertTriangle size={20} className="me-2" />
                 <span className="fw-semibold">Zgłoś błąd</span>
               </Card.Header>
               <Card.Body>
                 <div className="text-center text-muted py-5">
-                  <div>Formularz zgłaszania błędów będzie dostępny wkrótce.</div>
+                  <div>
+                    Formularz zgłaszania błędów będzie dostępny wkrótce.<br />
+                    <span className="mt-2 d-block">
+                      Na razie prosimy o zgłoszenia mailowo na adres:{" "}
+                      <a href="mailto:lukasz.bombala@zhr.pl" style={{ color: "#0d7337", textDecoration: "underline" }}>
+                        lukasz.bombala@zhr.pl
+                      </a>
+                    </span>
+                  </div>
                 </div>
+              </Card.Body>
+                </Card>
               </Card.Body>
             </Card>
           )}

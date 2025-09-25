@@ -8,11 +8,14 @@ import {
   Newspaper,
   Shield,
   LogIn,
-  LogOut
+  LogOut,
+  Box,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
 import { useAuth } from "../AuthContext";
+import fbLogo from "../images/facebook_logo.png";
+import ytLogo from "../images/youtube_logov2.png";
 
 function HeaderNav() {
   const [expanded, setExpanded] = useState(false);
@@ -35,28 +38,49 @@ function HeaderNav() {
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
     ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
+    { name: "Archiwum", icon: Box, to: "/archiwum" },
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 600);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
     <Navbar
       variant="dark"
       expand="md"
       className="shadow-lg py-3"
-      style={{ backgroundColor: "#0d7337" }}
+      style={{
+        backgroundColor: "#0d7337",
+        minWidth: "340px",
+        maxWidth: "100vw",
+        width: "100%",
+        paddingLeft: isMobile ? "0.7rem" : "2.5rem",
+        paddingRight: isMobile ? "0.7rem" : "2.5rem"
+      }}
       fixed="top"
       expanded={expanded}
       onToggle={setExpanded}
     >
-      <Container>
+      <Container fluid style={{ maxWidth: "1600px" }}>
         <Navbar.Brand
           as={Link}
           to="/"
           className="d-flex align-items-center gap-2"
-          style={{ cursor: "pointer" }}
+          style={{
+            cursor: "pointer",
+            fontSize: isMobile ? "1rem" : "2rem",
+            whiteSpace: isMobile ? "nowrap" : undefined,
+          }}
         >
-          <Trophy size={32} className="me-2" />
-          <span className="fs-4 fw-bold">Harcerska Liga Mistrzów</span>
+          <Trophy size={isMobile ? 22 : 32} className="me-2" />
+          <span className="fw-bold">
+            Harcerska Liga Mistrzów
+          </span>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="main-navbar" />
         <Navbar.Collapse id="main-navbar">
@@ -84,45 +108,153 @@ function HeaderNav() {
                 </Nav.Link>
               );
             })}
-            <div className="ms-3 d-flex align-items-center">
-              {!user ? (
-                <Button
-                  variant="outline-light"
-                  size="sm"
-                  className="d-flex align-items-center gap-1"
-                  style={{ fontWeight: 500 }}
-                  onClick={() => setShowLogin(true)}
-                >
-                  <LogIn size={16} className="me-1" />
-                  Zaloguj się
-                </Button>
+            <div className="ms-3 d-flex align-items-center flex-column flex-md-row w-100 w-md-auto">
+              {/* Przyciski logowania/panel/wyloguj */}
+              <div className="d-flex align-items-center">
+                {!user ? (
+                  <Button
+                    variant="outline-light"
+                    size="sm"
+                    className="d-flex align-items-center gap-1"
+                    style={{ fontWeight: 500 }}
+                    onClick={() => setShowLogin(true)}
+                  >
+                    <LogIn size={16} className="me-1" />
+                    Zaloguj się
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      as={Link}
+                      onClick={() => setExpanded(false)}
+                      to="/panel"
+                      variant="outline-light"
+                      size="sm"
+                      className="d-flex align-items-center gap-1 px-2"
+                      style={{ fontWeight: 500 }}
+                    >
+                      <Shield size={16} className="me-1" />
+                      Panel drużynowego
+                    </Button>
+                    <Button
+                      variant="outline-light"
+                      size="sm"
+                      title="Wyloguj się"
+                      className="d-flex align-items-center gap-1 ms-2"
+                      style={{ fontWeight: 500 }}
+                      onClick={async () => {
+                        await logout();
+                        navigate("/");
+                      }}
+                    >
+                      <LogOut size={16} className="me-1" />
+                      {user.email}
+                    </Button>
+                  </>
+                )}
+              </div>
+              {/* Ikony social osobno na mobile */}
+              {isMobile ? (
+                <div className="w-100 d-flex justify-content-center mt-2 gap-2">
+                  <a
+                    href="https://www.facebook.com/starodrzew?locale=pl_PL"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="d-flex align-items-center justify-content-center"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      borderRadius: "0.5rem",
+                      width: 38,
+                      height: 38,
+                      transition: "background 0.2s"
+                    }}
+                    title="Facebook"
+                  >
+                    <img
+                      src={fbLogo}
+                      alt="Facebook"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: "block"
+                      }}
+                    />
+                  </a>
+                  <a
+                    href="https://www.youtube.com/@harcerskaligamistrzow1340/featured"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="d-flex align-items-center justify-content-center"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      borderRadius: "0.5rem",
+                      width: 38,
+                      height: 38,
+                      transition: "background 0.2s"
+                    }}
+                    title="YouTube"
+                  >
+                    <img
+                      src={ytLogo}
+                      alt="YouTube"
+                      style={{
+                        width: 24,
+                        height: 24,
+                        display: "block"
+                      }}
+                    />
+                  </a>
+                </div>
               ) : (
                 <>
-                  <Button
-                    as={Link}
-                    onClick={() => setExpanded(false)}
-                    to="/panel"
-                    variant="outline-light"
-                    size="sm"
-                    className="d-flex align-items-center gap-1 px-2"
-                    style={{ fontWeight: 500 }}
-                  >
-                    <Shield size={16} className="me-1" />
-                    Panel drużynowego
-                  </Button>
-                  <Button
-                    variant="outline-light"
-                    size="sm"
-                    className="d-flex align-items-center gap-1 ms-2"
-                    style={{ fontWeight: 500 }}
-                    onClick={async () => {
-                      await logout();
-                      navigate("/");
+                  <a
+                    href="https://www.facebook.com/starodrzew?locale=pl_PL"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ms-3 d-flex align-items-center justify-content-center"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      borderRadius: "0.5rem",
+                      width: 42,
+                      height: 42,
+                      transition: "background 0.2s"
                     }}
+                    title="Facebook"
                   >
-                    <LogOut size={16} className="me-1" />
-                    Wyloguj się
-                  </Button>
+                    <img
+                      src={fbLogo}
+                      alt="Facebook"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        display: "block"
+                      }}
+                    />
+                  </a>
+                  <a
+                    href="https://www.youtube.com/@harcerskaligamistrzow1340/featured"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ms-2 d-flex align-items-center justify-content-center"
+                    style={{
+                      background: "rgba(255,255,255,0.08)",
+                      borderRadius: "0.5rem",
+                      width: 42,
+                      height: 42,
+                      transition: "background 0.2s"
+                    }}
+                    title="YouTube"
+                  >
+                    <img
+                      src={ytLogo}
+                      alt="YouTube"
+                      style={{
+                        width: 28,
+                        height: 28,
+                        display: "block"
+                      }}
+                    />
+                  </a>
                 </>
               )}
             </div>
@@ -131,31 +263,33 @@ function HeaderNav() {
       </Container>
       {/* Modal logowania */}
       <Modal show={showLogin} onHide={() => setShowLogin(false)} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Logowanie</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Button
-          variant="success"
-          className="w-100"
-          onClick={async () => {
-            try {
-              await loginWithGoogle();
-              setShowLogin(false);
-              navigate("/panel");
-            } catch (error) {
-              // Obsłuż tylko, jeśli to nie jest zamknięcie popupu
-              if (error.code !== "auth/popup-closed-by-user" && error.code !== "auth/cancelled-popup-request") {
-                alert("Błąd logowania: " + error.message);
+        <Modal.Header closeButton>
+          <Modal.Title>Logowanie</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Button
+            variant="success"
+            className="w-100"
+            onClick={async () => {
+              try {
+                await loginWithGoogle();
+                setShowLogin(false);
+                navigate("/panel");
+              } catch (error) {
+                if (
+                  error.code !== "auth/popup-closed-by-user" &&
+                  error.code !== "auth/cancelled-popup-request"
+                ) {
+                  alert("Błąd logowania: " + error.message);
+                }
+                setShowLogin(false);
               }
-              setShowLogin(false);
-            }
-          }}
-        >
-          Zaloguj się przez konto @zhr.pl
-        </Button>
-      </Modal.Body>
-    </Modal>
+            }}
+          >
+            Zaloguj się przez konto @zhr.pl
+          </Button>
+        </Modal.Body>
+      </Modal>
     </Navbar>
   );
 }

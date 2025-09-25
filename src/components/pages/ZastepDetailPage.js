@@ -1,9 +1,7 @@
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Card, Container, Spinner, Badge, Button, Table, Image, Row, Col, Form } from "react-bootstrap";
-import { Users, ChevronLeft, ExternalLink, UserCheck } from "lucide-react";
-import { zastepyListAll } from "../../services/zastepyList.mjs";
-import { punktacjaListAll } from "../../services/punktacjaList.mjs";
+import { useEffect, useState, useMemo } from "react";
+import { Card, Container, Spinner, Badge, Button, Table, Image, Row, Col, Form, Collapse, Alert, Pagination } from "react-bootstrap";
+import { Users, ChevronLeft, ExternalLink, UserCheck, Trophy, FileText, Info, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import logoPlaceholder from "../../images/logo_placeholder.png";
 import { Bar } from "react-chartjs-2";
 import {
@@ -15,11 +13,11 @@ import {
   Tooltip,
   Legend
 } from "chart.js";
-import { useRef } from "react";
-import { Modal } from "react-bootstrap";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { Pagination } from "react-bootstrap";
-
+import { Modal } from "react-bootstrap";
+import { zastepyListAll } from "../../services/zastepyList.mjs";
+import { punktacjaListAll } from "../../services/punktacjaList.mjs";
+import "./ZastepDetailPage.css";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
 const PLACEHOLDER_LOGO = logoPlaceholder;
@@ -47,14 +45,17 @@ export default function ZastepDetailPage() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const [catOptions, setCatOptions] = useState([]);
   const [selectedCat, setSelectedCat] = useState("");
-  const [filteredRecords, setFilteredRecords] = useState([]);
+  const [scoreValueFilter, setScoreValueFilter] = useState("");
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
   const [showCatDesc, setShowCatDesc] = useState(false);
   const [catDescHtml, setCatDescHtml] = useState("");
   const [catDescTitle, setCatDescTitle] = useState("");
-  const [scoreValueFilter, setScoreValueFilter] = useState("");
-    // Stan do paginacji
-  const [rowsPerPage, setRowsPerPage] = useState(20);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Responsive helpers
+  const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
+  const isDesktopWide = typeof window !== "undefined" ? window.innerWidth >= 992 : false;
 
   useEffect(() => {
     zastepyListAll().then((all) => {
@@ -64,17 +65,9 @@ export default function ZastepDetailPage() {
     });
   }, [id]);
 
-    useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [selectedMonth, selectedCat, scoreValueFilter, rowsPerPage]);
-
-    // Wylicz paginację
-  const totalRows = filteredRecords.length;
-  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
-  const paginatedRecords = filteredRecords.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
 
   useEffect(() => {
     punktacjaListAll().then((all) => {
@@ -105,24 +98,28 @@ export default function ZastepDetailPage() {
       const catsArr = Array.from(catsSet.entries()).map(([id, name]) => ({ id, name }));
       setCatOptions(catsArr);
 
-      // Domyślne filtry
-      if (monthsArr.length > 0) setSelectedMonth(""); // "" = wszystkie
-      if (catsArr.length > 0) setSelectedCat(""); // "" = wszystkie
-
       setScoreLoading(false);
     });
   }, [id]);
 
-    useEffect(() => {
-        let records = scoreData;
-        if (selectedMonth) records = records.filter(r => r.miesiac === selectedMonth);
-        if (selectedCat) records = records.filter(r => r.scoreCat?.[0]?.id === selectedCat);
-        if (scoreValueFilter !== "") {
-        const val = Number(scoreValueFilter);
-        if (!isNaN(val)) records = records.filter(r => r.scoreValue === val);
-        }
-        setFilteredRecords(records);
-    }, [scoreData, selectedMonth, selectedCat, scoreValueFilter]);
+  // Filtry i paginacja (dokładnie jak w PanelPage)
+  const filteredRecords = useMemo(() => {
+    let records = scoreData;
+    if (selectedMonth) records = records.filter(r => r.miesiac === selectedMonth);
+    if (selectedCat) records = records.filter(r => r.scoreCat?.[0]?.id === selectedCat);
+    if (scoreValueFilter !== "") {
+      const val = Number(scoreValueFilter);
+      if (!isNaN(val)) records = records.filter(r => r.scoreValue === val);
+    }
+    return records;
+  }, [scoreData, selectedMonth, selectedCat, scoreValueFilter]);
+
+  const totalRows = filteredRecords.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / rowsPerPage));
+  const paginatedRecords = filteredRecords.slice(
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
+  );
 
   // Kategorie jako wiersze, miesiące jako kolumny
   const catList = catOptions.length
@@ -137,7 +134,7 @@ export default function ZastepDetailPage() {
         return Array.from(catsSet.entries()).map(([id, name]) => ({ id, name }));
       })();
 
-    const monthList = monthOptions.length
+  const monthList = monthOptions.length
     ? monthOptions
     : (() => {
         const monthsSet = new Set(scoreData.map((rec) => rec.miesiac));
@@ -226,22 +223,20 @@ export default function ZastepDetailPage() {
     }
   };
 
-    function formatDate(dateStr) {
+  function formatDate(dateStr) {
     if (!dateStr) return "";
     if (typeof dateStr === "string") {
-        return dateStr.split(" ")[0];
+      return dateStr.split(" ")[0];
     }
-    // Jeśli to np. obiekt Date lub Timestamp z Firestore
     if (dateStr instanceof Date) {
-        return dateStr.toISOString().slice(0, 10);
+      return dateStr.toISOString().slice(0, 10);
     }
     if (typeof dateStr === "object" && typeof dateStr.seconds === "number") {
-        // Firestore Timestamp
-        const d = new Date(dateStr.seconds * 1000);
-        return d.toISOString().slice(0, 10);
+      const d = new Date(dateStr.seconds * 1000);
+      return d.toISOString().slice(0, 10);
     }
     return "";
-    }
+  }
 
   if (loading) {
     return (
@@ -347,8 +342,11 @@ export default function ZastepDetailPage() {
         </Col>
         <Col xs={12} md={6}>
           <Card className="shadow h-100">
+            <Card.Header className="d-flex align-items-center gap-2">
+              <Trophy size={20} className="me-2" />
+              <span className="fw-semibold">Przebieg punktacji w sezonie</span>
+            </Card.Header>
             <Card.Body>
-              <h4 className="fw-bold mb-3">Przebieg punktacji w sezonie</h4>
               <div className="mb-4">
                 <Bar data={barData} options={barOptions} height={260} />
               </div>
@@ -363,8 +361,11 @@ export default function ZastepDetailPage() {
       <Row className="mt-4">
         <Col xs={12}>
           <Card className="shadow mb-4">
+            <Card.Header className="d-flex align-items-center gap-2">
+              <Info size={20} className="me-2" />
+              <span className="fw-semibold">Tabela punktacji według kategorii</span>
+            </Card.Header>
             <Card.Body>
-              <h4 className="fw-bold mb-3">Tabela punktacji według kategorii</h4>
               {scoreLoading ? (
                 <Spinner animation="border" />
               ) : pointsTable.length === 0 ? (
@@ -375,13 +376,15 @@ export default function ZastepDetailPage() {
                     bordered
                     hover
                     responsive
-                    className="align-middle"
+                    className="align-middle punktacja-bordered"
                     style={{
                       borderCollapse: "separate",
                       borderSpacing: 0,
                       fontSize: "1.05rem",
-                      border: "2px solid #dee2e6", // Dodane obramowanie zewnętrzne
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                      border: "2px solid #dee2e6",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                      borderTop: "2px solid #dee2e6",
+                      borderBottom: "2px solid #dee2e6"
                     }}
                   >
                     <thead>
@@ -400,11 +403,16 @@ export default function ZastepDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pointsTable.map(row => (
-                        <tr key={row.catId}>
+                      {pointsTable.map((row, idx) => (
+                        <tr
+                          key={row.catId}
+                          style={{
+                            borderBottom: "2px solid #dee2e6"
+                          }}
+                        >
                           <td className="text-center align-middle fw-semibold" style={{ background: "#f8fafc" }}>{row.catName}</td>
-                          {row.points.map((pt, idx) => (
-                            <td key={idx} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
+                          {row.points.map((pt, idx2) => (
+                            <td key={idx2} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
                           ))}
                           <td className="fw-bold text-center align-middle" style={{ background: "#f8fafc" }}>{row.total}</td>
                         </tr>
@@ -417,137 +425,159 @@ export default function ZastepDetailPage() {
           </Card>
         </Col>
       </Row>
-      {/* Lista rekordów punktacji z filtrami */}
-<Row>
+      {/* Lista rekordów punktacji z filtrami i kartami jak w PanelPage */}
+      <Row>
         <Col xs={12}>
           <Card className="shadow">
-            <Card.Body>
-              <h4 className="fw-bold mb-3">Lista wpisów punktacji</h4>
-              <div
-                className="mb-3"
-                style={{
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 6,
-                  padding: "0.75rem 1rem",
-                  fontSize: "0.97rem",
-                  color: "#495057",
-                  maxWidth: 480
-                }}
+            <Card.Header className="d-flex align-items-center gap-2">
+              <FileText size={20} className="me-2" />
+              <span className="fw-semibold">Lista wpisów punktacji</span>
+              <Button
+                variant="outline-secondary"
+                size="sm"
+                className="ms-auto d-md-none"
+                onClick={() => setShowFilters((v) => !v)}
               >
-                <span style={{ color: "#0d6efd", fontWeight: 600 }}>Wskazówka:</span> Kliknij na nazwę kategorii, aby zobaczyć jej opis.
-              </div>
-              <Form className="mb-3 d-flex flex-wrap gap-3 align-items-end">
-                <Form.Group>
-                  <Form.Label>Miesiąc:</Form.Label>
-                  <Form.Select
-                    value={selectedMonth}
-                    onChange={e => setSelectedMonth(e.target.value)}
-                    style={{ minWidth: 180 }}
-                  >
-                    <option value="">Wszystkie</option>
-                    {monthOptions.map(opt => (
-                      <option key={opt.key} value={opt.key}>{opt.label}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Kategoria:</Form.Label>
-                  <Form.Select
-                    value={selectedCat}
-                    onChange={e => setSelectedCat(e.target.value)}
-                    style={{ minWidth: 180 }}
-                  >
-                    <option value="">Wszystkie</option>
-                    {catOptions.map(opt => (
-                      <option key={opt.id} value={opt.id}>{opt.name}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Punkty:</Form.Label>
-                  <Form.Select
-                    value={scoreValueFilter}
-                    onChange={e => setScoreValueFilter(e.target.value)}
-                    style={{ minWidth: 120 }}
-                  >
-                    <option value="">Wszystkie</option>
-                    {[...new Set(scoreData.map(r => r.scoreValue))]
-                      .filter(v => v !== undefined && v !== null)
-                      .sort((a, b) => a - b)
-                      .map(v => (
-                        <option key={v} value={v}>{v}</option>
-                      ))}
-                  </Form.Select>
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Wierszy na stronę:</Form.Label>
-                  <Form.Select
-                    value={rowsPerPage}
-                    onChange={e => setRowsPerPage(Number(e.target.value))}
-                    style={{ minWidth: 120 }}
-                  >
-                    {[10, 20, 50, 100].map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Form>
+                <Filter size={16} className="me-1" />
+                {showFilters ? "Ukryj filtry" : "Pokaż filtry"}
+                {showFilters ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </Button>
+            </Card.Header>
+            <Card.Body>
+              <Collapse in={showFilters || !isMobile}>
+                <div>
+                  <Row className="g-3 mb-3">
+                    <Col md={3}>
+                      <Form.Label>Kategoria</Form.Label>
+                      <Form.Select
+                        value={selectedCat}
+                        onChange={e => setSelectedCat(e.target.value)}
+                      >
+                        <option value="">Wszystkie</option>
+                        {catOptions.map(opt => (
+                          <option key={opt.id} value={opt.id}>{opt.name}</option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Label>Miesiąc</Form.Label>
+                      <Form.Select
+                        value={selectedMonth}
+                        onChange={e => setSelectedMonth(e.target.value)}
+                      >
+                        <option value="">Wszystkie</option>
+                        {monthOptions.map(opt => (
+                          <option key={opt.key} value={opt.key}>{opt.label}</option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Label>Punkty</Form.Label>
+                      <Form.Select
+                        value={scoreValueFilter}
+                        onChange={e => setScoreValueFilter(e.target.value)}
+                      >
+                        <option value="">Wszystkie</option>
+                        {[...new Set(scoreData.map(r => r.scoreValue))]
+                          .filter(v => v !== undefined && v !== null)
+                          .sort((a, b) => a - b)
+                          .map(v => (
+                            <option key={v} value={v}>{v}</option>
+                          ))}
+                      </Form.Select>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Label>Wierszy na stronę</Form.Label>
+                      <Form.Select
+                        value={rowsPerPage}
+                        onChange={e => setRowsPerPage(Number(e.target.value))}
+                      >
+                        {[10, 20, 50, 100].map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                  </Row>
+                  <div className="text-muted ms-2 mb-2">
+                    Wyświetlono {paginatedRecords.length} z {totalRows} wpisów
+                  </div>
+                </div>
+              </Collapse>
               {scoreLoading ? (
                 <Spinner animation="border" />
-              ) : filteredRecords.length === 0 ? (
-                <div className="text-muted">Brak rekordów punktacji dla wybranych filtrów.</div>
+              ) : paginatedRecords.length === 0 ? (
+                <div className="text-muted py-5 text-center">Brak wpisów punktacji dla wybranych filtrów.</div>
               ) : (
                 <>
-            <Table bordered hover responsive>
-            <thead>
-                <tr>
-                <th style={{ minWidth: 120, width: 120 }}>Data dodania</th>
-                <th style={{ minWidth: 110, width: 110 }}>Miesiąc</th>
-                <th style={{ minWidth: 160, width: 160 }}>Kategoria</th>
-                <th style={{ minWidth: 80, width: 80 }}>Punkty</th>
-                <th style={{ minWidth: 180, width: 180 }}>Uwagi</th>
-                </tr>
-            </thead>
-            <tbody>
-                {paginatedRecords.map((rec, idx) => (
-                <tr key={rec.id || idx}>
-                    <td style={{ minWidth: 120, width: 120 }}>{formatDate(rec.scoreAddDate)}</td>
-                    <td style={{ minWidth: 110, width: 110 }}>{getMonthLabelFromKey(rec.miesiac)}</td>
-                    <td style={{ minWidth: 160, width: 160 }}>
-                    <span
-                        style={{
-                        color: "#0d6efd",
-                        cursor: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "pointer" : "default",
-                        textDecoration: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "underline dotted" : "none"
-                        }}
-                        onClick={() => {
-                        if (rec.scoreCat?.[0]?.snapshot?.scoringDesc) {
-                            setCatDescTitle(rec.scoreCat[0].snapshot.scoringName || "Opis kategorii");
-                            setCatDescHtml(rec.scoreCat[0].snapshot.scoringDesc);
-                            setShowCatDesc(true);
-                        }
-                        }}
-                    >
-                        {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
-                    </span>
-                    </td>
-                    <td style={{ minWidth: 80, width: 80 }}>{rec.scoreValue}</td>
-                    <td style={{ minWidth: 180, width: 180 }}>
-                    {rec.scoreInfo
-                        ? (
-                            <span
-                            dangerouslySetInnerHTML={{
-                                __html: rec.scoreInfo
-                            }}
-                            />
-                        )
-                        : <span className="text-muted">brak</span>}
-                    </td>
-                </tr>
-                ))}
-            </tbody>
-            </Table>
+                  <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
+                    {paginatedRecords.map((rec) => (
+                      <div
+                        key={rec.id}
+                        className={isDesktopWide ? "col-md-6" : ""}
+                        style={isDesktopWide ? { display: "flex" } : {}}
+                      >
+                        <div className="bg-light rounded-lg border p-4 w-100" style={isDesktopWide ? { minHeight: 0 } : {}}>
+                          <div className="d-flex align-items-start justify-content-between gap-4">
+                            {/* Lewa część - główne informacje */}
+                            <div className="flex-grow-1">
+                              <div className="d-flex align-items-center gap-3 mb-2">
+                                <div>
+                                  <Trophy size={20} />
+                                </div>
+                                <div>
+                                  <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                    <span
+                                      style={{
+                                        color: "#0d6efd",
+                                        cursor: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "pointer" : "default",
+                                        textDecoration: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "underline dotted" : "none"
+                                      }}
+                                      onClick={() => {
+                                        if (rec.scoreCat?.[0]?.snapshot?.scoringDesc) {
+                                          setCatDescTitle(rec.scoreCat[0].snapshot.scoringName || "Opis kategorii");
+                                          setCatDescHtml(rec.scoreCat[0].snapshot.scoringDesc);
+                                          setShowCatDesc(true);
+                                        }
+                                      }}
+                                    >
+                                      {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
+                                    </span>
+                                  </h4>
+                                </div>
+                              </div>
+                              {/* Data, miesiąc */}
+                              <div className="d-flex flex-column flex-md-row align-items-md-center gap-2 text-xs text-muted mb-2">
+                                <div>
+                                  {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
+                                </div>
+                              </div>
+                              {/* Uwagi */}
+                              <div className="mt-2 text-muted" style={{ fontSize: "0.97em" }}>
+                                {rec.scoreInfo
+                                  ? (
+                                    <span
+                                      dangerouslySetInnerHTML={{
+                                        __html: rec.scoreInfo
+                                      }}
+                                    />
+                                  )
+                                  : <span className="text-muted">brak uwag</span>}
+                              </div>
+                            </div>
+                            {/* Środek - punkty */}
+                            <div className="text-center flex-shrink-0 px-2">
+                              <div className="fs-2 fw-bold text-primary">
+                                {rec.scoreValue}
+                              </div>
+                              <div className="text-xs text-muted">
+                                pkt
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   {/* Paginacja */}
                   {totalPages > 1 && (
                     <div className="d-flex justify-content-center mt-3">
@@ -568,17 +598,17 @@ export default function ZastepDetailPage() {
                       </Pagination>
                     </div>
                   )}
+                  {/* Modal z opisem kategorii */}
+                  <Modal show={showCatDesc} onHide={() => setShowCatDesc(false)} centered>
+                    <Modal.Header closeButton>
+                      <Modal.Title>{catDescTitle}</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <div dangerouslySetInnerHTML={{ __html: catDescHtml }} />
+                    </Modal.Body>
+                  </Modal>
                 </>
               )}
-              {/* Modal z opisem kategorii */}
-              <Modal show={showCatDesc} onHide={() => setShowCatDesc(false)} centered>
-                <Modal.Header closeButton>
-                  <Modal.Title>{catDescTitle}</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                  <div dangerouslySetInnerHTML={{ __html: catDescHtml }} />
-                </Modal.Body>
-              </Modal>
             </Card.Body>
           </Card>
         </Col>

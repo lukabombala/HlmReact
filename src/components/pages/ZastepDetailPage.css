@@ -1,0 +1,6 @@
+.punktacja-bordered tbody td {
+  border-bottom: 2px solid #838383 !important;
+}
+.punktacja-bordered thead th {
+  border-bottom: 2px solid #838383 !important;
+}

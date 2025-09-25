@@ -50,8 +50,8 @@ export default function NewsDetailPage() {
     );
   }
 
-  return (
-    <Container className="py-5" style={{ maxWidth: 800 , marginTop: "6rem"}}>
+return (
+    <Container className="py-5" style={{ maxWidth: "1100px", marginTop: "6rem" }}>
       <Card className="shadow">
         <div style={{ width: "100%", height: 320, overflow: "hidden", position: "relative" }}>
           <Card.Img
@@ -80,7 +80,6 @@ export default function NewsDetailPage() {
             </span>
           </div>
           <div style={{ fontSize: "1.1rem" }}>
-            {/* Jeśli content jest HTML-em */}
             {news.content
               ? <div dangerouslySetInnerHTML={{ __html: news.content }} />
               : <div className="text-muted">Brak treści</div>
