@@ -544,37 +544,51 @@ async function handleNotificationToggle(checked) {
 
   // Filtrowane rekordy historii
   const filteredHistoryRecords = useMemo(() => {
-    let records = teamPunktacje;
-    if (historyScout.length > 0 && !historyScout.includes("ALL"))
-      records = records.filter(r => historyScout.includes(r.scoreTeam?.[0]?.id));
-    if (historyCat.length > 0 && !historyCat.includes("ALL"))
-      records = records.filter(r => historyCat.includes(r.scoreCat?.[0]?.id));
-    if (historyMonth.length > 0 && !historyMonth.includes("ALL"))
-      records = records.filter(r => historyMonth.includes(r.miesiac));
-    if (historyDateFrom) {
-      const from = new Date(historyDateFrom);
-      records = records.filter(r => {
-        const d = r.scoreAddDate
-          ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
-              ? new Date(r.scoreAddDate.seconds * 1000)
-              : new Date(r.scoreAddDate))
-          : null;
-        return d && d >= from;
-      });
-    }
-    if (historyDateTo) {
-      const to = new Date(historyDateTo);
-      records = records.filter(r => {
-        const d = r.scoreAddDate
-          ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
-              ? new Date(r.scoreAddDate.seconds * 1000)
-              : new Date(r.scoreAddDate))
-          : null;
-        return d && d <= to;
-      });
-    }
-    return records;
-  }, [teamPunktacje, historyScout, historyCat, historyMonth, historyDateFrom, historyDateTo]);
+  let records = teamPunktacje;
+  if (historyScout.length > 0 && !historyScout.includes("ALL"))
+    records = records.filter(r => historyScout.includes(r.scoreTeam?.[0]?.id));
+  if (historyCat.length > 0 && !historyCat.includes("ALL"))
+    records = records.filter(r => historyCat.includes(r.scoreCat?.[0]?.id));
+  if (historyMonth.length > 0 && !historyMonth.includes("ALL"))
+    records = records.filter(r => historyMonth.includes(r.miesiac));
+  if (historyDateFrom) {
+    const from = new Date(historyDateFrom);
+    records = records.filter(r => {
+      const d = r.scoreAddDate
+        ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
+            ? new Date(r.scoreAddDate.seconds * 1000)
+            : new Date(r.scoreAddDate))
+        : null;
+      return d && d >= from;
+    });
+  }
+  if (historyDateTo) {
+    const to = new Date(historyDateTo);
+    records = records.filter(r => {
+      const d = r.scoreAddDate
+        ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
+            ? new Date(r.scoreAddDate.seconds * 1000)
+            : new Date(r.scoreAddDate))
+        : null;
+      return d && d <= to;
+    });
+  }
+  // Sortuj od najnowszej daty
+  records = records.slice().sort((a, b) => {
+    const da = a.scoreAddDate
+      ? (typeof a.scoreAddDate === "object" && a.scoreAddDate.seconds
+          ? a.scoreAddDate.seconds * 1000
+          : new Date(a.scoreAddDate).getTime())
+      : 0;
+    const db = b.scoreAddDate
+      ? (typeof b.scoreAddDate === "object" && b.scoreAddDate.seconds
+          ? b.scoreAddDate.seconds * 1000
+          : new Date(b.scoreAddDate).getTime())
+      : 0;
+    return db - da;
+  });
+  return records;
+}, [teamPunktacje, historyScout, historyCat, historyMonth, historyDateFrom, historyDateTo]);
 
   // Paginacja historii
   const totalHistoryRows = filteredHistoryRecords.length;
@@ -796,41 +810,47 @@ async function handleNotificationToggle(checked) {
 
       {/* Top nav for mobile */}
       <nav
-        className="d-flex d-md-none justify-content-around align-items-center"
-        style={{
-          position: "fixed",
-          top: 72,
-          left: 0,
-          right: 0,
-          height: 54,
-          background: darkMode ? "#232326" : "#fff",
-          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
-          zIndex: 100,
-          color: darkMode ? "#e5e7eb" : undefined,
-        }}
-      >
-        {NAV.map((item) => (
-          <Button
-            key={item.key}
-            variant={tab === item.key ? "primary" : "light"}
-            className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
-            style={{
-              border: "none",
-              borderRadius: 0,
-              fontWeight: 500,
-              background: tab === item.key ? "#e0e7ff" : "transparent",
-              color: tab === item.key ? "#1e293b" : "#374151",
-              boxShadow: "none",
-              flex: 1,
-              height: "100%",
-            }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.icon}
-            <span style={{ fontSize: 12 }}>{item.label}</span>
-          </Button>
-        ))}
-      </nav>
+      className="d-flex d-md-none justify-content-around align-items-stretch"
+      style={{
+        position: "fixed",
+        top: 72,
+        left: 0,
+        right: 0,
+        height: 54,
+        background: darkMode ? "#232326" : "#fff",
+        borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
+        zIndex: 100,
+        color: darkMode ? "#e5e7eb" : undefined,
+      }}
+    >
+      {NAV.map((item) => (
+        <Button
+          key={item.key}
+          variant={tab === item.key ? "primary" : "light"}
+          className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+          style={{
+            border: "none",
+            borderRadius: 0,
+            fontWeight: 500,
+            background: tab === item.key ? "#e0e7ff" : "transparent",
+            color: tab === item.key ? "#1e293b" : "#374151",
+            boxShadow: "none",
+            flex: 1,
+            height: "100%",
+            minWidth: 0,
+            padding: 0,
+          }}
+          onClick={() => setTab(item.key)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+            <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {item.icon}
+            </div>
+            <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
+          </div>
+        </Button>
+      ))}
+    </nav>
 
       {/* Main content */}
       <Container
@@ -1099,82 +1119,124 @@ async function handleNotificationToggle(checked) {
 
                   {/* Lista zastępów */}
                   <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
-                    <Card.Header className="d-flex align-items-center gap-2">
-                      <Trophy size={20} className="me-2" />
-                      <span className="fw-semibold">Moje zastępy</span>
-                    </Card.Header>
-                    <Card.Body style={darkMode ? darkCardStyle : {}}>
-                      <Table bordered responsive >
-                      <thead>
-                          <tr>
-                          <th>Zastęp</th>
-                          <th className="text-center">Punkty</th>
-                          <th className="text-center">Aktualna pozycja</th>
-                          <th className="text-center">Data ostatniego wpisu</th>
-                          <th className="text-center">Akcje</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <Trophy size={20} className="me-2" />
+                    <span className="fw-semibold">Moje zastępy</span>
+                  </Card.Header>
+                  <Card.Body style={darkMode ? darkCardStyle : {}}>
+                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
                       {teamScouts.map((scout) => {
                         const ranking = allZastepyRanking.find(z => z.id === scout.id);
                         return (
-                          <tr key={scout.id} style={{ verticalAlign: "middle" }}>
-                            <td className="fw-medium text-center align-middle">{scout.name}</td>
-                            <td className="text-center align-middle">
-                              <Badge bg="primary">{scout.points}</Badge>
-                            </td>
-                            <td className="text-center align-middle">
-                              {ranking ? ranking.position : "-"}
-                            </td>
-                            <td className="text-center text-muted small align-middle">
-                              {scout.last
-                                ? (() => {
-                                    if (typeof scout.last === "object" && scout.last.seconds) {
-                                      return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
-                                    }
-                                    if (typeof scout.last === "string") {
-                                      return new Date(scout.last).toLocaleDateString("pl-PL");
-                                    }
-                                    return "Brak wpisów";
-                                  })()
-                                : "Brak wpisów"}
-                            </td>
-                            <td className="text-center align-middle">
-                              <div className={`d-flex gap-2 justify-content-center ${isMobile ? "flex-wrap" : ""}`}>
-                                <Button
-                                  variant="outline-primary"
-                                  size={isMobile ? "sm" : "md"}
-                                  style={isMobile ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem" } : {}}
-                                  title="Dodaj punkty"
-                                  onClick={() => handleOpenAddModal(scout.id)}
-                                >
-                                  <Plus size={isMobile ? 14 : 16} className="me-1" />
-                                  {isMobile ? "Dodaj" : "Dodaj punkty"}
-                                </Button>
-                                <Button
-                                  variant="outline-secondary"
-                                  size={isMobile ? "sm" : "md"}
-                                  style={
-                                    isMobile
-                                      ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem", minWidth: "72px", justifyContent: "center" }
-                                      : {}
-                                  }
-                                  title="Informacje o zastępie"
-                                  onClick={() => {
-                                    const scoutData = zastepy.find(z => z.id === scout.id);
-                                    setScoutInfoData(scoutData);
-                                    setShowScoutInfoModal(true);
-                                  }}
-                                >
-                                  <Info size={isMobile ? 14 : 16} className="me-1" />
-                                  {isMobile ? <span style={{ opacity: 100 }}> Info</span> : "Dane zastępu"}
-                                </Button>
+                          <div
+                            key={scout.id}
+                            className={isDesktopWide ? "col-md-6" : ""}
+                            style={isDesktopWide ? { display: "flex" } : {}}
+                          >
+                            <div
+                              className="bg-light rounded-lg border w-100"
+                              style={{
+                                padding: isMobile ? "0.75rem" : "1.5rem",
+                                minHeight: isDesktopWide ? 0 : undefined
+                              }}
+                            >
+                              <div className="d-flex align-items-start justify-content-between gap-4">
+                                <div className="flex-grow-1">
+                                  <div className="d-flex align-items-center gap-3 mb-2">
+                                    <div>
+                                      <Users size={20} />
+                                    </div>
+                                    <div>
+                                      <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                        {scout.name}
+                                      </h4>
+                                    </div>
+                                  </div>
+                                  <div className="d-flex flex-wrap gap-2 mb-2">
+
+                                  <Badge
+                                    bg="success"
+                                    className="text-xs"
+                                    style={{
+                                      minWidth: 80,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
+                                    }}
+                                  >
+                                    Punkty: {scout.points}
+                                  </Badge>
+
+                                  <Badge
+                                    bg="secondary"
+                                    className="text-xs"
+                                    style={{
+                                      minWidth: 80,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
+                                    }}
+                                  >
+                                    Wpisów: {scout.activities}
+                                  </Badge>
+
+                                  <Badge
+                                    bg="secondary"
+                                    className="text-xs"
+                                    style={{
+                                      minWidth: 80,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
+                                    }}
+                                  >
+                                    Pozycja: {ranking ? ranking.position : "-"}
+                                  </Badge>
+                                </div>
+                                  <div className="text-muted small mb-2">
+                                    Ostatni wpis: {scout.last
+                                      ? (() => {
+                                          if (typeof scout.last === "object" && scout.last.seconds) {
+                                            return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
+                                          }
+                                          if (typeof scout.last === "string") {
+                                            return new Date(scout.last).toLocaleDateString("pl-PL");
+                                          }
+                                          return "Brak wpisów";
+                                        })()
+                                      : "Brak wpisów"}
+                                  </div>
+                                </div>
+                                <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                                  <Button
+                                    variant="outline-primary"
+                                    size="sm"
+                                    title="Dodaj punkty"
+                                    onClick={() => handleOpenAddModal(scout.id)}
+                                  >
+                                    <Plus size={16} className="me-1" />
+                                  </Button>
+                                  <Button
+                                    variant="outline-secondary"
+                                    size="sm"
+                                    title="Informacje o zastępie"
+                                    onClick={() => {
+                                      const scoutData = zastepy.find(z => z.id === scout.id);
+                                      setScoutInfoData(scoutData);
+                                      setShowScoutInfoModal(true);
+                                    }}
+                                  >
+                                    <Info size={16} className="me-1" />
+                                  </Button>
+                                </div>
                               </div>
-                            </td>
-                          </tr>
-                        );})}
-                      </tbody>
-                    </Table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card.Body>
+                </Card>
 
                     <Modal show={showScoutInfoModal} 
                            onHide={() => setShowScoutInfoModal(false)} 
@@ -1232,8 +1294,6 @@ async function handleNotificationToggle(checked) {
                         )}
                       </Modal.Body>
                     </Modal>
-                    </Card.Body>
-                  </Card>
 
                   {/* Modal dodawania punktów */}
                   <Modal show={showAddModal} 
@@ -1626,7 +1686,16 @@ async function handleNotificationToggle(checked) {
                               <div className="flex-grow-1">
                                 <div className="d-flex align-items-center gap-3 mb-2">
                                   <div>
-                                    <Trophy size={20} />
+                                    {(() => {
+                                      const catId = rec.scoreCat?.[0]?.id;
+                                      const cat = scoringCategories.find(c => c.id === catId);
+                                      if (cat?.scoringIcon) {
+                                        // Jeśli scoringIcon to nazwa z lucide-react, np. "Trophy", "Star", "Award"
+                                        const IconComponent = require("lucide-react")[cat.scoringIcon];
+                                        return IconComponent ? <IconComponent size={20} /> : <Trophy size={20} />;
+                                      }
+                                      return <Trophy size={20} />;
+                                    })()}
                                   </div>
                                   <div>
                                     <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
@@ -1758,7 +1827,128 @@ async function handleNotificationToggle(checked) {
                         <Modal.Title>Edytuj wpis punktacji</Modal.Title>
                       </Modal.Header>
                       <Modal.Body>
-                        {/* ...formularz edycji wpisu... */}
+                        <Modal.Body>
+                          {editEntrySuccess ? (
+                            <Alert variant="success" className="mb-0">
+                              Wpis został zaktualizowany.
+                            </Alert>
+                          ) : editEntryData && (
+                            <Form onSubmit={handleEditEntrySubmit}>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Zastęp</Form.Label>
+                                <Form.Select value={editScoutId || ""} disabled>
+                                  <option>Wybierz zastęp</option>
+                                  {teamScouts.map((scout) => (
+                                    <option key={scout.id} value={scout.id}>{scout.name}</option>
+                                  ))}
+                                </Form.Select>
+                              </Form.Group>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Kategoria</Form.Label>
+                                <Form.Select
+                                  value={editCategoryId}
+                                  onChange={e => setEditCategoryId(e.target.value)}
+                                  required
+                                >
+                                  <option value="">Wybierz kategorię</option>
+                                  {scoringCategories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.scoringName}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                                {editCategoryId && (
+                                  <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                                    <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === editCategoryId)?.scoringDesc }} />
+                                  </div>
+                                )}
+                              </Form.Group>
+                              {editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && (
+                                <Form.Group className="mb-3">
+                                  <Form.Label>Harcerz</Form.Label>
+                                  <Form.Select
+                                    value={editScoutPersonId}
+                                    onChange={e => setEditScoutPersonId(e.target.value)}
+                                    required={scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                                    disabled={!scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                                  >
+                                    <option value="">Wybierz harcerza</option>
+                                    {zastepy.find(z => z.id === editScoutId)?.harcerze?.map(h => (
+                                      <option key={h.id} value={h.id}>{h.name} {h.surname}</option>
+                                    ))}
+                                  </Form.Select>
+                                </Form.Group>
+                              )}
+                              <Row>
+                                <Col>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>
+                                      Punkty ({editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                        ? `1-${scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal}`
+                                        : "1-10"})
+                                    </Form.Label>
+                                    <Form.Control
+                                      type="number"
+                                      min={1}
+                                      max={editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                        ? scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal
+                                        : 10}
+                                      value={editPoints}
+                                      onChange={e => setEditPoints(e.target.value)}
+                                      required
+                                    />
+                                  </Form.Group>
+                                </Col>
+                                <Col>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                                    <Form.Select
+                                      value={editMonth}
+                                      onChange={e => setEditMonth(e.target.value)}
+                                      required
+                                    >
+                                      <option value="">Wybierz miesiąc</option>
+                                      <option value="202509">wrzesień 2025</option>
+                                      <option value="202510">październik 2025</option>
+                                      <option value="202511">listopad 2025</option>
+                                      <option value="202512">grudzień 2025</option>
+                                      <option value="202601">styczeń 2026</option>
+                                      <option value="202602">luty 2026</option>
+                                      <option value="202603">marzec 2026</option>
+                                      <option value="202604">kwiecień 2026</option>
+                                      <option value="202605">maj 2026</option>
+                                      <option value="202606">czerwiec 2026</option>
+                                    </Form.Select>
+                                  </Form.Group>
+                                </Col>
+                              </Row>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                                <Form.Control
+                                  as="textarea"
+                                  rows={2}
+                                  value={editNotes}
+                                  onChange={e => setEditNotes(e.target.value)}
+                                  placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                                />
+                              </Form.Group>
+                              <Button
+                                type="submit"
+                                variant="primary"
+                                className="w-100"
+                                disabled={
+                                  !editCategoryId ||
+                                  !editScoutId ||
+                                  !editPoints ||
+                                  !editMonth ||
+                                  (scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && !editScoutPersonId)
+                                }
+                              >
+                                Zapisz zmiany
+                              </Button>
+                            </Form>
+                          )}
+                        </Modal.Body>
                       </Modal.Body>
                     </Modal>
                     <Modal show={showDeleteEntryModal} 
