@@ -12,7 +12,7 @@ import { app } from "../../firebaseConfig";
 import "./PanelPage.css";
 
 import { getMessaging, getToken, onMessage, deleteToken} from "firebase/messaging";
-import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { arrayUnion, arrayRemove , deleteDoc} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { toast } from "react-toastify";
 
@@ -113,6 +113,31 @@ export default function PanelPage() {
   const messaging = getMessaging(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // Funckja do usuwania wpisu
+  async function handleDeleteEntryConfirm() {
+    if (!deleteEntryData?.id) return;
+    try {
+      await deleteDoc(doc(db, "Punktacja", deleteEntryData.id));
+      setDeleteEntrySuccess(true);
+
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+
+      console.log("Usunięto wpis punktacji!", deleteEntryData.id);
+      setTimeout(() => {
+        setShowDeleteEntryModal(false);
+        setDeleteEntryData(null);
+        setDeleteEntrySuccess(false);
+      }, 1200);
+    } catch (err) {
+      alert("Błąd usuwania wpisu: " + err.message);
+      console.error("Błąd usuwania wpisu punktacji:", err);
+    }
+  }
 
   // Firestore data
   const [teams, setTeams] = useState([]);
@@ -666,9 +691,6 @@ async function handleNotificationToggle(checked) {
     setShowDeleteEntryModal(false);
     setDeleteEntryData(null);
     setDeleteEntrySuccess(false);
-  }
-  function handleDeleteEntryConfirm() {
-    setDeleteEntrySuccess(true);
   }
 
   const allZastepyRanking = useMemo(() => {
