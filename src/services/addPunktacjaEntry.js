@@ -19,6 +19,7 @@ export async function addPunktacjaEntry({
   month,
   userEmail,
   notes,
+  selectedScoutPerson,
 }) {
   const db = getFirestore(app);
 
@@ -35,7 +36,7 @@ export async function addPunktacjaEntry({
     }
   ];
 
-  // scoreTeam z polem id i snapshot, w snapshot: blog, fullName, jednostka[0] z id i snapshot drużyny
+  // scoreTeam mapowanie
   const scoreTeam = [
     {
       id: selectedScoutTeam.id,
@@ -58,6 +59,22 @@ export async function addPunktacjaEntry({
     }
   ];
 
+  // scoreScout mapowanie (jeśli wybrano harcerza)
+  let scoreScout;
+  if (selectedScoutPerson) {
+    scoreScout = [
+      {
+        id: selectedScoutPerson.id,
+        snapshot: {
+          name: selectedScoutPerson.name || "",
+          surname: selectedScoutPerson.surname || "",
+          stopien: selectedScoutPerson.stopien || "",
+          zastepowy: !!selectedScoutPerson.zastepowy
+        }
+      }
+    ];
+  }
+
   // Mapowanie pól
   const entry = {
     scoreCat,
@@ -70,6 +87,7 @@ export async function addPunktacjaEntry({
   };
 
   if (notes) entry.scoreInfo = notes;
+  if (scoreScout) entry.scoreScout = scoreScout;
 
   try {
     const docRef = await addDoc(collection(db, "Punktacja"), entry);

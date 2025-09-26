@@ -377,10 +377,20 @@ async function handleNotificationToggle(checked) {
     setShowAddModal(true);
   }
 
-    async function handleAddPointsSubmit(e) {
+ async function handleAddPointsSubmit(e) {
   e.preventDefault();
   const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
-  const selectedScoutTeam = teamScouts.find(z => z.id === addScoutId);
+  const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+
+  // Pobierz obiekt harcerza jeśli wybrano
+  let selectedScoutPerson = undefined;
+  if (
+    addScoutPersonId &&
+    scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd
+  ) {
+    const zastęp = zastepy.find(z => z.id === addScoutId);
+    selectedScoutPerson = zastęp?.harcerze?.find(h => h.id === addScoutPersonId);
+  }
 
   try {
     await addPunktacjaEntry({
@@ -390,12 +400,11 @@ async function handleNotificationToggle(checked) {
       month: addMonth,
       userEmail: user.email,
       notes: addNotes,
-      // selectedScoutPerson NIE przekazujemy!
+      selectedScoutPerson, 
     });
 
     setShowAddModal(false);
 
-    // Resetuj wartości pól modala
     setAddCategoryId("");
     setAddScoutPersonId("");
     setAddPoints("");
@@ -412,7 +421,6 @@ async function handleNotificationToggle(checked) {
   } catch (err) {
     alert("Błąd dodawania wpisu: " + err.message);
     console.error("Błąd dodawania wpisu punktacji:", err);
-    // Modal zostaje otwarty, żeby użytkownik mógł poprawić dane
   }
 }
 
@@ -1183,7 +1191,8 @@ async function handleNotificationToggle(checked) {
                       </Form.Select>
                       {/* Opcjonalnie opis kategorii */}
                       {addCategoryId && (
-                        <div className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
+                        <div className="text-muted mt-1" 
+                        style={{ fontSize: "0.95rem" , paddingTop: "0.5rem" }}>
                           <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === addCategoryId)?.scoringDesc }} />
                         </div>
                       )}
