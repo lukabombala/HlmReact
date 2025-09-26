@@ -90,6 +90,12 @@ export default function PanelPage() {
   const [addMonth, setAddMonth] = useState("");
   const [scoringCategories, setScoringCategories] = useState([]);
   const [addNotes, setAddNotes] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editScoutId, setEditScoutId] = useState("");
+  const [editScoutPersonId, setEditScoutPersonId] = useState("");
+  const [editPoints, setEditPoints] = useState("");
+  const [editMonth, setEditMonth] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -591,19 +597,65 @@ async function handleNotificationToggle(checked) {
   }
 
   function openEditEntryModal(entry) {
-    setEditEntryData(entry);
-    setEditEntrySuccess(false);
-    setShowEditEntryModal(true);
+  setEditEntryData(entry);
+  setEditEntrySuccess(false);
+  setShowEditEntryModal(true);
+
+  setEditCategoryId(entry.scoreCat?.[0]?.id || "");
+  setEditScoutId(entry.scoreTeam?.[0]?.id || "");
+  setEditScoutPersonId(entry.scoreScout?.[0]?.id || "");
+  setEditPoints(entry.scoreValue || "");
+  setEditMonth(entry.miesiac || "");
+  setEditNotes(entry.scoreInfo || "");
   }
   function closeEditEntryModal() {
     setShowEditEntryModal(false);
     setEditEntryData(null);
     setEditEntrySuccess(false);
   }
-  function handleEditEntrySubmit(e) {
-    e.preventDefault();
-    setEditEntrySuccess(true);
+
+  async function handleEditEntrySubmit(e) {
+  e.preventDefault();
+  const selectedCategory = scoringCategories.find(cat => cat.id === editCategoryId);
+  const selectedScoutTeam = zastepy.find(z => z.id === editScoutId);
+
+  let selectedScoutPerson = undefined;
+  if (
+    editScoutPersonId &&
+    scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd
+  ) {
+    const zastęp = zastepy.find(z => z.id === editScoutId);
+    selectedScoutPerson = zastęp?.harcerze?.find(h => h.id === editScoutPersonId);
   }
+
+  try {
+    await addPunktacjaEntry({
+      selectedCategory,
+      selectedScoutTeam,
+      points: editPoints,
+      month: editMonth,
+      userEmail: user.email,
+      notes: editNotes,
+      selectedScoutPerson,
+      isEdit: true,
+      entryId: editEntryData.id,
+    });
+
+    setShowEditEntryModal(false);
+    setEditEntrySuccess(true);
+
+    setPunktacjeLoading(true);
+    punktacjaListAll().then((data) => {
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    });
+
+    console.log("Zaktualizowano wpis punktacji!");
+  } catch (err) {
+    alert("Błąd edycji wpisu: " + err.message);
+    console.error("Błąd edycji wpisu punktacji:", err);
+  }
+}
 
   function openDeleteEntryModal(entry) {
     setDeleteEntryData(entry);
@@ -1585,91 +1637,134 @@ async function handleNotificationToggle(checked) {
                     </Modal>
                     {/* Modal edycji wpisu */}
                     <Modal show={showEditEntryModal} 
-                           onHide={closeEditEntryModal} 
-                           centered
-                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
-                      <Modal.Header closeButton>
-                        <Modal.Title>Edytuj wpis punktacji</Modal.Title>
-                      </Modal.Header>
-                      <Modal.Body>
-                        {editEntrySuccess ? (
-                          <Alert variant="success" className="mb-0">
-                            Zmiany zostały zapisane.
-                          </Alert>
-                        ) : editEntryData && (
-                          <Form onSubmit={handleEditEntrySubmit}>
+                        onHide={closeEditEntryModal} 
+                        centered
+                        container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                    <Modal.Header closeButton>
+                      <Modal.Title>Edytuj wpis punktacji</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <Form onSubmit={handleEditEntrySubmit}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Zastęp</Form.Label>
+                          <Form.Select
+                            value={editScoutId}
+                            onChange={e => setEditScoutId(e.target.value)}
+                            required
+                          >
+                            <option value="">Wybierz zastęp</option>
+                            {teamScouts.map((scout) => (
+                              <option key={scout.id} value={scout.id}>{scout.name}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Kategoria</Form.Label>
+                          <Form.Select
+                            value={editCategoryId}
+                            onChange={e => setEditCategoryId(e.target.value)}
+                            required
+                          >
+                            <option value="">Wybierz kategorię</option>
+                            {scoringCategories.map(cat => (
+                              <option key={cat.id} value={cat.id}>
+                                {cat.scoringName}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          {editCategoryId && (
+                            <div className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
+                              <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === editCategoryId)?.scoringDesc }} />
+                            </div>
+                          )}
+                        </Form.Group>
+                        {/* Pole harcerz jeśli scoringScoutInd === true */}
+                        {editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && (
+                          <Form.Group className="mb-3">
+                            <Form.Label>Harcerz</Form.Label>
+                            <Form.Select
+                              value={editScoutPersonId}
+                              onChange={e => setEditScoutPersonId(e.target.value)}
+                              required={scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                              disabled={!scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                            >
+                              <option value="">Wybierz harcerza</option>
+                              {zastepy.find(z => z.id === editScoutId)?.harcerze?.map(h => (
+                                <option key={h.id} value={h.id}>{h.name} {h.surname}</option>
+                              ))}
+                            </Form.Select>
+                          </Form.Group>
+                        )}
+                        <Row>
+                          <Col>
                             <Form.Group className="mb-3">
-                              <Form.Label>Zastęp</Form.Label>
-                              <Form.Select value={editEntryData.scoreTeam?.[0]?.id || ""} disabled>
-                                {teamScouts.map((scout) => (
-                                  <option key={scout.id} value={scout.id}>{scout.name}</option>
-                                ))}
-                              </Form.Select>
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Kategoria</Form.Label>
-                              <Form.Select value={editEntryData.scoreCat?.[0]?.id || ""} disabled>
-                                {historyCatOptions.map((cat) => (
-                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                              </Form.Select>
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Opis działania</Form.Label>
+                              <Form.Label>
+                                Punkty ({editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                  ? `1-${scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal}`
+                                  : "1-10"})
+                              </Form.Label>
                               <Form.Control
-                                as="textarea"
-                                rows={2}
-                                defaultValue={editEntryData.scoreInfo || ""}
+                                type="number"
+                                min={1}
+                                max={editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                  ? scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal
+                                  : 10}
+                                value={editPoints}
+                                onChange={e => setEditPoints(e.target.value)}
+                                required
                               />
                             </Form.Group>
-                            <Row>
-                              <Col>
-                                <Form.Group className="mb-3">
-                                  <Form.Label>Punkty (1-10)</Form.Label>
-                                  <Form.Control
-                                    type="number"
-                                    min={1}
-                                    max={10}
-                                    defaultValue={editEntryData.scoreValue}
-                                  />
-                                </Form.Group>
-                              </Col>
-                              <Col>
-                                <Form.Group className="mb-3">
-                                  <Form.Label>Data</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    defaultValue={formatDate(editEntryData.scoreAddDate)}
-                                  />
-                                </Form.Group>
-                              </Col>
-                            </Row>
+                          </Col>
+                          <Col>
                             <Form.Group className="mb-3">
                               <Form.Label>Klasyfikacja miesięczna</Form.Label>
-                              <Form.Control
-                                type="month"
-                                defaultValue={
-                                  editEntryData.miesiac
-                                    ? `${editEntryData.miesiac.slice(0, 4)}-${editEntryData.miesiac.slice(4, 6)}`
-                                    : ""
-                                }
-                              />
+                              <Form.Select
+                                value={editMonth}
+                                onChange={e => setEditMonth(e.target.value)}
+                                required
+                              >
+                                <option value="">Wybierz miesiąc</option>
+                                <option value="202509">wrzesień 2025</option>
+                                <option value="202510">październik 2025</option>
+                                <option value="202511">listopad 2025</option>
+                                <option value="202512">grudzień 2025</option>
+                                <option value="202601">styczeń 2026</option>
+                                <option value="202602">luty 2026</option>
+                                <option value="202603">marzec 2026</option>
+                                <option value="202604">kwiecień 2026</option>
+                                <option value="202605">maj 2026</option>
+                                <option value="202606">czerwiec 2026</option>
+                              </Form.Select>
                             </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Uwagi (opcjonalne)</Form.Label>
-                              <Form.Control
-                                as="textarea"
-                                rows={2}
-                                defaultValue={editEntryData.uwagi || ""}
-                              />
-                            </Form.Group>
-                            <Button type="submit" variant="primary" className="w-100">
-                              Zapisz zmiany
-                            </Button>
-                          </Form>
-                        )}
-                      </Modal.Body>
-                    </Modal>
+                          </Col>
+                        </Row>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            rows={2}
+                            value={editNotes}
+                            onChange={e => setEditNotes(e.target.value)}
+                            placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                          />
+                        </Form.Group>
+                        <Button
+                          type="submit"
+                          variant="primary"
+                          className="w-100"
+                          disabled={
+                            !editCategoryId ||
+                            !editScoutId ||
+                            !editPoints ||
+                            !editMonth ||
+                            (scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && !editScoutPersonId)
+                          }
+                        >
+                          Zapisz zmiany
+                        </Button>
+                      </Form>
+                    </Modal.Body>
+                  </Modal>
                     {/* Modal usuwania wpisu */}
                     <Modal show={showDeleteEntryModal} 
                            onHide={closeDeleteEntryModal} 
