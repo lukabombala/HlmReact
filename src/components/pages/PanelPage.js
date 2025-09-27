@@ -871,8 +871,7 @@ async function handleNotificationToggle(checked) {
             marginBottom: isMobile ? "1rem" : "3rem"
           }}
         >
-          {/* --- ŁADOWANIE DANYCH UŻYTKOWNIKA --- */}
-          {(authLoading || userWebLoading) && (
+          {(authLoading || userWebLoading || teamsLoading || zastepyLoading || punktacjeLoading) && (
             <div className="text-center py-5">
               <Spinner animation="border" />
               <div className="mt-2 text-muted">Ładowanie danych użytkownika...</div>
@@ -885,7 +884,7 @@ async function handleNotificationToggle(checked) {
           )}
 
           {/* --- PANEL DRUŻYNOWY --- */}
-          {!authLoading && !userWebLoading && tab === "team" && (
+          {!authLoading && !userWebLoading && !teamsLoading && !zastepyLoading && !punktacjeLoading && tab === "team" && (
             <>
               <div className="mb-4" style={{ padding: isMobile ? "1.2rem" : "0 2rem", textAlign: "center" }}>
                 <h1 className="fw-bold mb-2" style={{ fontSize: "2rem", ...(darkMode ? darkTextStyle : {}) }}>Panel Drużynowego</h1>
