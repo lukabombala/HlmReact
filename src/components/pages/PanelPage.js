@@ -1058,25 +1058,50 @@ async function handleNotificationToggle(checked) {
                       </Button>
                     </Card.Header>
                     <Card.Body style={darkMode ? darkCardStyle : {}}>
-                    <Row>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{teamScouts.length}</div>
-                        <div className="text-muted small">Zastępy</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{scoutsCount}</div>
-                        <div className="text-muted small">Harcerzy</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{totalPoints}</div>
-                        <div className="text-muted small">Łącznie punktów</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center">
-                        <div className="fs-2 fw-bold text-primary me-3">{totalActivities}</div>
-                        <div className="text-muted small">Wpisów ogółem</div>
-                      </Col>
-                    </Row>
-                  </Card.Body>
+                      {isMobile ? (
+                        <Row>
+                          <Col xs={6} className="d-flex flex-column justify-content-center align-items-start mb-2" style={{ minWidth: 120 }}>
+                            <div className="d-flex align-items-center mb-2" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Zastępy</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{teamScouts.length}</div>
+                            </div>
+                            <div className="d-flex align-items-center" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Harcerzy</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{scoutsCount}</div>
+                            </div>
+                          </Col>
+                          <Col xs={6} className="d-flex flex-column justify-content-center align-items-start mb-2" style={{ minWidth: 120 }}>
+                            <div className="d-flex align-items-center mb-2" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Łącznie punktów</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{totalPoints}</div>
+                            </div>
+                            <div className="d-flex align-items-center" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Wpisów ogółem</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{totalActivities}</div>
+                            </div>
+                          </Col>
+                        </Row>
+                      ) : (
+                        <Row>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Zastępy</div>
+                            <div className="fs-2 fw-bold text-primary">{teamScouts.length}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Harcerzy</div>
+                            <div className="fs-2 fw-bold text-primary">{scoutsCount}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Łącznie punktów</div>
+                            <div className="fs-2 fw-bold text-primary">{totalPoints}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center">
+                            <div className="text-muted small me-2">Wpisów ogółem</div>
+                            <div className="fs-2 fw-bold text-primary">{totalActivities}</div>
+                          </Col>
+                        </Row>
+                      )}
+                    </Card.Body>
                   </Card>
 
                   {/* Modal edycji drużyny */}
@@ -1126,65 +1151,36 @@ async function handleNotificationToggle(checked) {
                   <Card.Body style={darkMode ? darkCardStyle : {}}>
                     <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
                       {teamScouts.map((scout) => {
-                        const ranking = allZastepyRanking.find(z => z.id === scout.id);
-                        return (
-                          <div
-                            key={scout.id}
-                            className={isDesktopWide ? "col-md-6" : ""}
-                            style={isDesktopWide ? { display: "flex" } : {}}
-                          >
-                            <div
-                              className="bg-light rounded-lg border w-100"
-                              style={{
-                                padding: isMobile ? "0.75rem" : "1.5rem",
-                                minHeight: isDesktopWide ? 0 : undefined
-                              }}
-                            >
-                              <div className="d-flex align-items-start justify-content-between gap-4">
-                                <div className="flex-grow-1">
-                                  <div className="d-flex align-items-center gap-3 mb-2">
-                                    <div>
-                                      <Users size={20} />
-                                    </div>
-                                    <div>
-                                      <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
-                                        {scout.name}
-                                      </h4>
-                                    </div>
-                                  </div>
-                                  <div className="d-flex flex-wrap gap-2 mb-2">
-
+                  const ranking = allZastepyRanking.find(z => z.id === scout.id);
+                  return (
+                    <div
+                      key={scout.id}
+                      className={isDesktopWide ? "col-md-6" : ""}
+                      style={isDesktopWide ? { display: "flex" } : {}}
+                    >
+                      <div
+                        className="bg-light rounded-lg border w-100"
+                        style={{
+                          padding: isMobile ? "0.75rem" : "1.5rem",
+                          minHeight: isDesktopWide ? 0 : undefined
+                        }}
+                      >
+                        <div className="d-flex align-items-start justify-content-between gap-4">
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-3 mb-2">
+                              <div>
+                                <Users size={20} />
+                              </div>
+                              <div>
+                                <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                  {scout.name}
+                                </h4>
+                                <div className="d-flex align-items-center gap-2 mt-1">
                                   <Badge
                                     bg="success"
                                     className="text-xs"
                                     style={{
-                                      minWidth: 80,
-                                      textAlign: "center",
-                                      fontWeight: 500,
-                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
-                                    }}
-                                  >
-                                    Punkty: {scout.points}
-                                  </Badge>
-
-                                  <Badge
-                                    bg="secondary"
-                                    className="text-xs"
-                                    style={{
-                                      minWidth: 80,
-                                      textAlign: "center",
-                                      fontWeight: 500,
-                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
-                                    }}
-                                  >
-                                    Wpisów: {scout.activities}
-                                  </Badge>
-
-                                  <Badge
-                                    bg="secondary"
-                                    className="text-xs"
-                                    style={{
-                                      minWidth: 80,
+                                      minWidth: 60,
                                       textAlign: "center",
                                       fontWeight: 500,
                                       border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
@@ -1192,48 +1188,71 @@ async function handleNotificationToggle(checked) {
                                   >
                                     Pozycja: {ranking ? ranking.position : "-"}
                                   </Badge>
-                                </div>
-                                  <div className="text-muted small mb-2">
-                                    Ostatni wpis: {scout.last
-                                      ? (() => {
-                                          if (typeof scout.last === "object" && scout.last.seconds) {
-                                            return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
-                                          }
-                                          if (typeof scout.last === "string") {
-                                            return new Date(scout.last).toLocaleDateString("pl-PL");
-                                          }
-                                          return "Brak wpisów";
-                                        })()
-                                      : "Brak wpisów"}
-                                  </div>
-                                </div>
-                                <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
-                                  <Button
-                                    variant="outline-primary"
-                                    size="sm"
-                                    title="Dodaj punkty"
-                                    onClick={() => handleOpenAddModal(scout.id)}
-                                  >
-                                    <Plus size={16} className="me-1" />
-                                  </Button>
-                                  <Button
-                                    variant="outline-secondary"
-                                    size="sm"
-                                    title="Informacje o zastępie"
-                                    onClick={() => {
-                                      const scoutData = zastepy.find(z => z.id === scout.id);
-                                      setScoutInfoData(scoutData);
-                                      setShowScoutInfoModal(true);
+                                  <Badge
+                                    bg="secondary"
+                                    className="text-xs ms-auto"
+                                    style={{
+                                      minWidth: 60,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
                                     }}
                                   >
-                                    <Info size={16} className="me-1" />
-                                  </Button>
+                                    Wpisów: {scout.activities}
+                                  </Badge>
                                 </div>
                               </div>
                             </div>
+                            <div className="text-muted small mb-2">
+                              Ostatni wpis: {scout.last
+                                ? (() => {
+                                    if (typeof scout.last === "object" && scout.last.seconds) {
+                                      return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
+                                    }
+                                    if (typeof scout.last === "string") {
+                                      return new Date(scout.last).toLocaleDateString("pl-PL");
+                                    }
+                                    return "Brak wpisów";
+                                  })()
+                                : "Brak wpisów"}
+                            </div>
                           </div>
-                        );
-                      })}
+                          {/* Punkty na lewo od przycisków, wyśrodkowane w pionie */}
+                          <div className="d-flex flex-column align-items-center justify-content-center" style={{ alignSelf: "center" }}>
+                            <div className="fs-2 fw-bold text-primary" style={{ lineHeight: 1 }}>
+                              {scout.points}
+                            </div>
+                            <div className="text-xs text-muted" style={{ lineHeight: 1 }}>
+                              pkt
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              title="Dodaj punkty"
+                              onClick={() => handleOpenAddModal(scout.id)}
+                            >
+                              <Plus size={16} className="me-1" />
+                            </Button>
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              title="Informacje o zastępie"
+                              onClick={() => {
+                                const scoutData = zastepy.find(z => z.id === scout.id);
+                                setScoutInfoData(scoutData);
+                                setShowScoutInfoModal(true);
+                              }}
+                            >
+                              <Info size={16} className="me-1" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
                     </div>
                   </Card.Body>
                 </Card>
