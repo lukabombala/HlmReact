@@ -1053,7 +1053,7 @@ async function handleNotificationToggle(checked) {
                         className="d-flex align-items-center"
                       >
                         <Edit2 size={16} className="me-1" />
-                        Edycja drużyny
+                        Edytuj
                       </Button>
                     </Card.Header>
                     <Card.Body style={darkMode ? darkCardStyle : {}}>
@@ -1105,41 +1105,19 @@ async function handleNotificationToggle(checked) {
 
                   {/* Modal edycji drużyny */}
                   <Modal show={showEditModal} 
-                         onHide={() => setShowEditModal(false)} 
-                         centered
-                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
-                    <Modal.Header closeButton>
-                      <Modal.Title>Prośba o edycję danych drużyny</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                      {editSent ? (
-                        <Alert variant="success" className="mb-0">
-                          Prośba o edycję została wysłana do administratora.
-                        </Alert>
-                      ) : (
-                        <Form onSubmit={handleEditSubmit}>
-                          <Alert variant="info">
-                            Zmiany w danych drużyny może wprowadzić tylko administrator strony.<br />
-                            Opisz poniżej, jakie dane chcesz zmienić.
-                          </Alert>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Opis zmian</Form.Label>
-                            <Form.Control
-                              as="textarea"
-                              rows={4}
-                              required
-                              value={editRequest}
-                              onChange={e => setEditRequest(e.target.value)}
-                              placeholder="Opisz, jakie dane drużyny wymagają zmiany..."
-                            />
-                          </Form.Group>
-                          <Button type="submit" variant="primary" className="w-100">
-                            Wyślij prośbę
-                          </Button>
-                        </Form>
-                      )}
-                    </Modal.Body>
-                  </Modal>
+                      onHide={() => setShowEditModal(false)} 
+                      centered
+                      container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Edycja danych drużyny</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <Alert variant="info">
+                      Na ten moment zmiana danych drużyny wymaga kontaktu z administratorem strony.<br />
+                      <br />Napisz na adres: <br /><a href="mailto:piotr.duda-klimaszewski@zhr.pl">piotr.duda-klimaszewski@zhr.pl</a>
+                    </Alert>
+                  </Modal.Body>
+                </Modal>
 
                   {/* Lista zastępów */}
                   <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
