@@ -32,7 +32,7 @@ export default function HeroSection() {
   const cardStyle = cardHeight ? { minHeight: cardHeight, height: cardHeight } : {};
 
   return (
-    <section id="home" className="py-4">
+    <section id="home">
       <Container style={{ paddingTop: "7rem" }}>
         <div className="text-center mb-4">
           <h2 className="fw-bold mb-2" style={{ fontSize: "2rem", color: "#0d7337" }}>
