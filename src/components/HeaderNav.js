@@ -85,7 +85,72 @@ function HeaderNav() {
         <Navbar.Toggle aria-controls="main-navbar" />
         <Navbar.Collapse id="main-navbar">
           <Nav className="ms-auto align-items-center gap-2">
-            {navItems.map((item) => {
+          {isMobile ? (
+            <div
+              className="w-100 d-flex flex-column align-items-center justify-content-center"
+              style={{ minHeight: "100%", width: "100%" }}
+            >
+              <div
+                style={{
+                  width: 145,
+                  maxWidth: "90vw",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                }}
+              >
+                {navItems.map((item) => {
+                  const isActive = location.pathname === item.to;
+                  return (
+                    <Nav.Link
+                      as={Link}
+                      to={item.to}
+                      key={item.name}
+                      className={`d-flex align-items-center py-1 px-2${isActive ? " active" : ""}`}
+                      style={{
+                        color: isActive ? "#fff" : "var(--bs-light)",
+                        background: isActive ? "rgba(255,255,255,0.10)" : "transparent",
+                        borderRadius: isActive ? "0.5rem" : undefined,
+                        fontWeight: isActive ? 600 : 400,
+                        fontSize: 15,
+                        minHeight: 38,
+                        height: 38,
+                        textAlign: "left",
+                        whiteSpace: "nowrap",
+                        width: "100%",
+                        margin: "0 auto",
+                        justifyContent: "flex-start",
+                        gap: 10,
+                      }}
+                      onClick={() => setExpanded(false)}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <span
+                        className="d-flex align-items-center justify-content-center"
+                        style={{
+                          minWidth: 36,
+                          width: 36,
+                          height: 36,
+                        }}
+                      >
+                        <item.icon size={22} />
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 15,
+                          lineHeight: "1.2",
+                          display: "inline-block",
+                        }}
+                      >
+                        {item.name}
+                      </span>
+                    </Nav.Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            navItems.map((item) => {
               const isActive = location.pathname === item.to;
               return (
                 <Nav.Link
@@ -107,7 +172,8 @@ function HeaderNav() {
                   {item.name}
                 </Nav.Link>
               );
-            })}
+            })
+          )}
             <div className="ms-3 d-flex align-items-center flex-column flex-md-row w-100 w-md-auto">
               {/* Przyciski logowania/panel/wyloguj */}
               <div className="d-flex align-items-center">

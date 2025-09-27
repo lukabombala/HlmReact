@@ -12,7 +12,7 @@ import { app } from "../../firebaseConfig";
 import "./PanelPage.css";
 
 import { getMessaging, getToken, onMessage, deleteToken} from "firebase/messaging";
-import { arrayUnion, arrayRemove } from "firebase/firestore";
+import { arrayUnion, arrayRemove , deleteDoc} from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { toast } from "react-toastify";
 
@@ -90,6 +90,12 @@ export default function PanelPage() {
   const [addMonth, setAddMonth] = useState("");
   const [scoringCategories, setScoringCategories] = useState([]);
   const [addNotes, setAddNotes] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
+  const [editScoutId, setEditScoutId] = useState("");
+  const [editScoutPersonId, setEditScoutPersonId] = useState("");
+  const [editPoints, setEditPoints] = useState("");
+  const [editMonth, setEditMonth] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -107,6 +113,31 @@ export default function PanelPage() {
   const messaging = getMessaging(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // Funckja do usuwania wpisu
+  async function handleDeleteEntryConfirm() {
+    if (!deleteEntryData?.id) return;
+    try {
+      await deleteDoc(doc(db, "Punktacja", deleteEntryData.id));
+      setDeleteEntrySuccess(true);
+
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+
+      console.log("Usunięto wpis punktacji!", deleteEntryData.id);
+      setTimeout(() => {
+        setShowDeleteEntryModal(false);
+        setDeleteEntryData(null);
+        setDeleteEntrySuccess(false);
+      }, 1200);
+    } catch (err) {
+      alert("Błąd usuwania wpisu: " + err.message);
+      console.error("Błąd usuwania wpisu punktacji:", err);
+    }
+  }
 
   // Firestore data
   const [teams, setTeams] = useState([]);
@@ -377,10 +408,20 @@ async function handleNotificationToggle(checked) {
     setShowAddModal(true);
   }
 
-    async function handleAddPointsSubmit(e) {
+ async function handleAddPointsSubmit(e) {
   e.preventDefault();
   const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
-  const selectedScoutTeam = teamScouts.find(z => z.id === addScoutId);
+  const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+
+  // Pobierz obiekt harcerza jeśli wybrano
+  let selectedScoutPerson = undefined;
+  if (
+    addScoutPersonId &&
+    scoringCategories.find(cat => cat.id === addCategoryId)?.scoringScoutInd
+  ) {
+    const zastęp = zastepy.find(z => z.id === addScoutId);
+    selectedScoutPerson = zastęp?.harcerze?.find(h => h.id === addScoutPersonId);
+  }
 
   try {
     await addPunktacjaEntry({
@@ -390,12 +431,11 @@ async function handleNotificationToggle(checked) {
       month: addMonth,
       userEmail: user.email,
       notes: addNotes,
-      // selectedScoutPerson NIE przekazujemy!
+      selectedScoutPerson, 
     });
 
     setShowAddModal(false);
 
-    // Resetuj wartości pól modala
     setAddCategoryId("");
     setAddScoutPersonId("");
     setAddPoints("");
@@ -412,7 +452,6 @@ async function handleNotificationToggle(checked) {
   } catch (err) {
     alert("Błąd dodawania wpisu: " + err.message);
     console.error("Błąd dodawania wpisu punktacji:", err);
-    // Modal zostaje otwarty, żeby użytkownik mógł poprawić dane
   }
 }
 
@@ -505,37 +544,51 @@ async function handleNotificationToggle(checked) {
 
   // Filtrowane rekordy historii
   const filteredHistoryRecords = useMemo(() => {
-    let records = teamPunktacje;
-    if (historyScout.length > 0 && !historyScout.includes("ALL"))
-      records = records.filter(r => historyScout.includes(r.scoreTeam?.[0]?.id));
-    if (historyCat.length > 0 && !historyCat.includes("ALL"))
-      records = records.filter(r => historyCat.includes(r.scoreCat?.[0]?.id));
-    if (historyMonth.length > 0 && !historyMonth.includes("ALL"))
-      records = records.filter(r => historyMonth.includes(r.miesiac));
-    if (historyDateFrom) {
-      const from = new Date(historyDateFrom);
-      records = records.filter(r => {
-        const d = r.scoreAddDate
-          ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
-              ? new Date(r.scoreAddDate.seconds * 1000)
-              : new Date(r.scoreAddDate))
-          : null;
-        return d && d >= from;
-      });
-    }
-    if (historyDateTo) {
-      const to = new Date(historyDateTo);
-      records = records.filter(r => {
-        const d = r.scoreAddDate
-          ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
-              ? new Date(r.scoreAddDate.seconds * 1000)
-              : new Date(r.scoreAddDate))
-          : null;
-        return d && d <= to;
-      });
-    }
-    return records;
-  }, [teamPunktacje, historyScout, historyCat, historyMonth, historyDateFrom, historyDateTo]);
+  let records = teamPunktacje;
+  if (historyScout.length > 0 && !historyScout.includes("ALL"))
+    records = records.filter(r => historyScout.includes(r.scoreTeam?.[0]?.id));
+  if (historyCat.length > 0 && !historyCat.includes("ALL"))
+    records = records.filter(r => historyCat.includes(r.scoreCat?.[0]?.id));
+  if (historyMonth.length > 0 && !historyMonth.includes("ALL"))
+    records = records.filter(r => historyMonth.includes(r.miesiac));
+  if (historyDateFrom) {
+    const from = new Date(historyDateFrom);
+    records = records.filter(r => {
+      const d = r.scoreAddDate
+        ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
+            ? new Date(r.scoreAddDate.seconds * 1000)
+            : new Date(r.scoreAddDate))
+        : null;
+      return d && d >= from;
+    });
+  }
+  if (historyDateTo) {
+    const to = new Date(historyDateTo);
+    records = records.filter(r => {
+      const d = r.scoreAddDate
+        ? (typeof r.scoreAddDate === "object" && r.scoreAddDate.seconds
+            ? new Date(r.scoreAddDate.seconds * 1000)
+            : new Date(r.scoreAddDate))
+        : null;
+      return d && d <= to;
+    });
+  }
+  // Sortuj od najnowszej daty
+  records = records.slice().sort((a, b) => {
+    const da = a.scoreAddDate
+      ? (typeof a.scoreAddDate === "object" && a.scoreAddDate.seconds
+          ? a.scoreAddDate.seconds * 1000
+          : new Date(a.scoreAddDate).getTime())
+      : 0;
+    const db = b.scoreAddDate
+      ? (typeof b.scoreAddDate === "object" && b.scoreAddDate.seconds
+          ? b.scoreAddDate.seconds * 1000
+          : new Date(b.scoreAddDate).getTime())
+      : 0;
+    return db - da;
+  });
+  return records;
+}, [teamPunktacje, historyScout, historyCat, historyMonth, historyDateFrom, historyDateTo]);
 
   // Paginacja historii
   const totalHistoryRows = filteredHistoryRecords.length;
@@ -583,19 +636,65 @@ async function handleNotificationToggle(checked) {
   }
 
   function openEditEntryModal(entry) {
-    setEditEntryData(entry);
-    setEditEntrySuccess(false);
-    setShowEditEntryModal(true);
+  setEditEntryData(entry);
+  setEditEntrySuccess(false);
+  setShowEditEntryModal(true);
+
+  setEditCategoryId(entry.scoreCat?.[0]?.id || "");
+  setEditScoutId(entry.scoreTeam?.[0]?.id || "");
+  setEditScoutPersonId(entry.scoreScout?.[0]?.id || "");
+  setEditPoints(entry.scoreValue || "");
+  setEditMonth(entry.miesiac || "");
+  setEditNotes(entry.scoreInfo || "");
   }
   function closeEditEntryModal() {
     setShowEditEntryModal(false);
     setEditEntryData(null);
     setEditEntrySuccess(false);
   }
-  function handleEditEntrySubmit(e) {
-    e.preventDefault();
-    setEditEntrySuccess(true);
+
+  async function handleEditEntrySubmit(e) {
+  e.preventDefault();
+  const selectedCategory = scoringCategories.find(cat => cat.id === editCategoryId);
+  const selectedScoutTeam = zastepy.find(z => z.id === editScoutId);
+
+  let selectedScoutPerson = undefined;
+  if (
+    editScoutPersonId &&
+    scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd
+  ) {
+    const zastęp = zastepy.find(z => z.id === editScoutId);
+    selectedScoutPerson = zastęp?.harcerze?.find(h => h.id === editScoutPersonId);
   }
+
+  try {
+    await addPunktacjaEntry({
+      selectedCategory,
+      selectedScoutTeam,
+      points: editPoints,
+      month: editMonth,
+      userEmail: user.email,
+      notes: editNotes,
+      selectedScoutPerson,
+      isEdit: true,
+      entryId: editEntryData.id,
+    });
+
+    setShowEditEntryModal(false);
+    setEditEntrySuccess(true);
+
+    setPunktacjeLoading(true);
+    punktacjaListAll().then((data) => {
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    });
+
+    console.log("Zaktualizowano wpis punktacji!");
+  } catch (err) {
+    alert("Błąd edycji wpisu: " + err.message);
+    console.error("Błąd edycji wpisu punktacji:", err);
+  }
+}
 
   function openDeleteEntryModal(entry) {
     setDeleteEntryData(entry);
@@ -606,9 +705,6 @@ async function handleNotificationToggle(checked) {
     setShowDeleteEntryModal(false);
     setDeleteEntryData(null);
     setDeleteEntrySuccess(false);
-  }
-  function handleDeleteEntryConfirm() {
-    setDeleteEntrySuccess(true);
   }
 
   const allZastepyRanking = useMemo(() => {
@@ -714,58 +810,68 @@ async function handleNotificationToggle(checked) {
 
       {/* Top nav for mobile */}
       <nav
-        className="d-flex d-md-none justify-content-around align-items-center"
-        style={{
-          position: "fixed",
-          top: 72,
-          left: 0,
-          right: 0,
-          height: 54,
-          background: darkMode ? "#232326" : "#fff",
-          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
-          zIndex: 100,
-          color: darkMode ? "#e5e7eb" : undefined,
-        }}
-      >
-        {NAV.map((item) => (
-          <Button
-            key={item.key}
-            variant={tab === item.key ? "primary" : "light"}
-            className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
-            style={{
-              border: "none",
-              borderRadius: 0,
-              fontWeight: 500,
-              background: tab === item.key ? "#e0e7ff" : "transparent",
-              color: tab === item.key ? "#1e293b" : "#374151",
-              boxShadow: "none",
-              flex: 1,
-              height: "100%",
-            }}
-            onClick={() => setTab(item.key)}
-          >
-            {item.icon}
-            <span style={{ fontSize: 12 }}>{item.label}</span>
-          </Button>
-        ))}
-      </nav>
+      className="d-flex d-md-none justify-content-around align-items-stretch"
+      style={{
+        position: "fixed",
+        top: 72,
+        left: 0,
+        right: 0,
+        height: 54,
+        background: darkMode ? "#232326" : "#fff",
+        borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
+        zIndex: 100,
+        color: darkMode ? "#e5e7eb" : undefined,
+      }}
+    >
+      {NAV.map((item) => (
+        <Button
+          key={item.key}
+          variant={tab === item.key ? "primary" : "light"}
+          className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+          style={{
+            border: "none",
+            borderRadius: 0,
+            fontWeight: 500,
+            background: tab === item.key ? "#e0e7ff" : "transparent",
+            color: tab === item.key ? "#1e293b" : "#374151",
+            boxShadow: "none",
+            flex: 1,
+            height: "100%",
+            minWidth: 0,
+            padding: 0,
+          }}
+          onClick={() => setTab(item.key)}
+        >
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+            <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {item.icon}
+            </div>
+            <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
+          </div>
+        </Button>
+      ))}
+    </nav>
 
       {/* Main content */}
       <Container
-        fluid
-        
-        style={{
-          maxWidth: "100%",
-          margin: "0 auto",
-          padding: "0 2rem",
-          flex: 1,
-          marginTop: isMobile ? 145 : "6rem",
-          ...(darkMode ? darkModeStyles : {}),
-        }}
-      >
-        <div style={{ maxWidth: "100%", margin: "0 auto", marginBottom: "3rem" }}>
-          {/* --- ŁADOWANIE DANYCH UŻYTKOWNIKA --- */}
-          {(authLoading || userWebLoading) && (
+          fluid
+          style={{
+            maxWidth: "100%",
+            margin: "0 auto",
+            padding: isMobile ? "0" : "0 2rem",
+            flex: 1,
+            marginTop: isMobile ? 145 : "6rem",
+            ...(darkMode ? darkModeStyles : {}),
+          }}
+        >
+        <div
+          style={{
+            maxWidth: "100%",
+            margin: "0 auto",
+            marginBottom: isMobile ? "1rem" : "3rem"
+          }}
+        >
+          {(authLoading || userWebLoading || teamsLoading || zastepyLoading || punktacjeLoading) && (
             <div className="text-center py-5">
               <Spinner animation="border" />
               <div className="mt-2 text-muted">Ładowanie danych użytkownika...</div>
@@ -778,9 +884,9 @@ async function handleNotificationToggle(checked) {
           )}
 
           {/* --- PANEL DRUŻYNOWY --- */}
-          {!authLoading && !userWebLoading && tab === "team" && (
+          {!authLoading && !userWebLoading && !teamsLoading && !zastepyLoading && !punktacjeLoading && tab === "team" && (
             <>
-              <div className="mb-4">
+              <div className="mb-4" style={{ padding: isMobile ? "1.2rem" : "0 2rem", textAlign: "center" }}>
                 <h1 className="fw-bold mb-2" style={{ fontSize: "2rem", ...(darkMode ? darkTextStyle : {}) }}>Panel Drużynowego</h1>
                 <div className="text-muted mb-3" style={darkMode ? darkTextStyle : {}}>
                   Zarządzaj punktacją zastępów w Twojej drużynie.
@@ -947,100 +1053,135 @@ async function handleNotificationToggle(checked) {
                         className="d-flex align-items-center"
                       >
                         <Edit2 size={16} className="me-1" />
-                        Edycja drużyny
+                        Edytuj
                       </Button>
                     </Card.Header>
                     <Card.Body style={darkMode ? darkCardStyle : {}}>
-                    <Row>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{teamScouts.length}</div>
-                        <div className="text-muted small">Zastępy</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{scoutsCount}</div>
-                        <div className="text-muted small">Harcerzy</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
-                        <div className="fs-2 fw-bold text-primary me-3">{totalPoints}</div>
-                        <div className="text-muted small">Łącznie punktów</div>
-                      </Col>
-                      <Col md={3} className="d-flex align-items-center justify-content-center">
-                        <div className="fs-2 fw-bold text-primary me-3">{totalActivities}</div>
-                        <div className="text-muted small">Wpisów ogółem</div>
-                      </Col>
-                    </Row>
-                  </Card.Body>
+                      {isMobile ? (
+                        <Row>
+                          <Col xs={6} className="d-flex flex-column justify-content-center align-items-start mb-2" style={{ minWidth: 120 }}>
+                            <div className="d-flex align-items-center mb-2" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Zastępy</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{teamScouts.length}</div>
+                            </div>
+                            <div className="d-flex align-items-center" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Harcerzy</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{scoutsCount}</div>
+                            </div>
+                          </Col>
+                          <Col xs={6} className="d-flex flex-column justify-content-center align-items-start mb-2" style={{ minWidth: 120 }}>
+                            <div className="d-flex align-items-center mb-2" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Łącznie punktów</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{totalPoints}</div>
+                            </div>
+                            <div className="d-flex align-items-center" style={{ minWidth: 120 }}>
+                              <div className="text-muted small" style={{ minWidth: 80 }}>Wpisów ogółem</div>
+                              <div className="fs-2 fw-bold text-primary" style={{ minWidth: 60, textAlign: "right", marginLeft: 16 }}>{totalActivities}</div>
+                            </div>
+                          </Col>
+                        </Row>
+                      ) : (
+                        <Row>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Zastępy</div>
+                            <div className="fs-2 fw-bold text-primary">{teamScouts.length}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Harcerzy</div>
+                            <div className="fs-2 fw-bold text-primary">{scoutsCount}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center mb-3 mb-md-0">
+                            <div className="text-muted small me-2">Łącznie punktów</div>
+                            <div className="fs-2 fw-bold text-primary">{totalPoints}</div>
+                          </Col>
+                          <Col md={3} className="d-flex align-items-center justify-content-center">
+                            <div className="text-muted small me-2">Wpisów ogółem</div>
+                            <div className="fs-2 fw-bold text-primary">{totalActivities}</div>
+                          </Col>
+                        </Row>
+                      )}
+                    </Card.Body>
                   </Card>
 
                   {/* Modal edycji drużyny */}
                   <Modal show={showEditModal} 
-                         onHide={() => setShowEditModal(false)} 
-                         centered
-                         container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
-                    <Modal.Header closeButton>
-                      <Modal.Title>Prośba o edycję danych drużyny</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body>
-                      {editSent ? (
-                        <Alert variant="success" className="mb-0">
-                          Prośba o edycję została wysłana do administratora.
-                        </Alert>
-                      ) : (
-                        <Form onSubmit={handleEditSubmit}>
-                          <Alert variant="info">
-                            Zmiany w danych drużyny może wprowadzić tylko administrator strony.<br />
-                            Opisz poniżej, jakie dane chcesz zmienić.
-                          </Alert>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Opis zmian</Form.Label>
-                            <Form.Control
-                              as="textarea"
-                              rows={4}
-                              required
-                              value={editRequest}
-                              onChange={e => setEditRequest(e.target.value)}
-                              placeholder="Opisz, jakie dane drużyny wymagają zmiany..."
-                            />
-                          </Form.Group>
-                          <Button type="submit" variant="primary" className="w-100">
-                            Wyślij prośbę
-                          </Button>
-                        </Form>
-                      )}
-                    </Modal.Body>
-                  </Modal>
+                      onHide={() => setShowEditModal(false)} 
+                      centered
+                      container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                  <Modal.Header closeButton>
+                    <Modal.Title>Edycja danych drużyny</Modal.Title>
+                  </Modal.Header>
+                  <Modal.Body>
+                    <Alert variant="info">
+                      Na ten moment zmiana danych drużyny wymaga kontaktu z administratorem strony.<br />
+                      <br />Napisz na adres: <br /><a href="mailto:piotr.duda-klimaszewski@zhr.pl">piotr.duda-klimaszewski@zhr.pl</a>
+                    </Alert>
+                  </Modal.Body>
+                </Modal>
 
                   {/* Lista zastępów */}
                   <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
-                    <Card.Header className="d-flex align-items-center gap-2">
-                      <Trophy size={20} className="me-2" />
-                      <span className="fw-semibold">Moje zastępy</span>
-                    </Card.Header>
-                    <Card.Body style={darkMode ? darkCardStyle : {}}>
-                      <Table bordered responsive >
-                      <thead>
-                          <tr>
-                          <th>Zastęp</th>
-                          <th className="text-center">Punkty</th>
-                          <th className="text-center">Aktualna pozycja</th>
-                          <th className="text-center">Data ostatniego wpisu</th>
-                          <th className="text-center">Akcje</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  <Card.Header className="d-flex align-items-center gap-2">
+                    <Trophy size={20} className="me-2" />
+                    <span className="fw-semibold">Moje zastępy</span>
+                  </Card.Header>
+                  <Card.Body style={darkMode ? darkCardStyle : {}}>
+                    <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
                       {teamScouts.map((scout) => {
-                        const ranking = allZastepyRanking.find(z => z.id === scout.id);
-                        return (
-                          <tr key={scout.id} style={{ verticalAlign: "middle" }}>
-                            <td className="fw-medium text-center align-middle">{scout.name}</td>
-                            <td className="text-center align-middle">
-                              <Badge bg="primary">{scout.points}</Badge>
-                            </td>
-                            <td className="text-center align-middle">
-                              {ranking ? ranking.position : "-"}
-                            </td>
-                            <td className="text-center text-muted small align-middle">
-                              {scout.last
+                  const ranking = allZastepyRanking.find(z => z.id === scout.id);
+                  return (
+                    <div
+                      key={scout.id}
+                      className={isDesktopWide ? "col-md-6" : ""}
+                      style={isDesktopWide ? { display: "flex" } : {}}
+                    >
+                      <div
+                        className="bg-light rounded-lg border w-100"
+                        style={{
+                          padding: isMobile ? "0.75rem" : "1.5rem",
+                          minHeight: isDesktopWide ? 0 : undefined
+                        }}
+                      >
+                        <div className="d-flex align-items-start justify-content-between gap-4">
+                          <div className="flex-grow-1">
+                            <div className="d-flex align-items-center gap-3 mb-2">
+                              <div>
+                                <Users size={20} />
+                              </div>
+                              <div>
+                                <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                  {scout.name}
+                                </h4>
+                                <div className="d-flex align-items-center gap-2 mt-1">
+                                  <Badge
+                                    bg="success"
+                                    className="text-xs"
+                                    style={{
+                                      minWidth: 60,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
+                                    }}
+                                  >
+                                    Pozycja: {ranking ? ranking.position : "-"}
+                                  </Badge>
+                                  <Badge
+                                    bg="secondary"
+                                    className="text-xs ms-auto"
+                                    style={{
+                                      minWidth: 60,
+                                      textAlign: "center",
+                                      fontWeight: 500,
+                                      border: darkMode ? "1px solid #333" : "1px solid #e5e7eb"
+                                    }}
+                                  >
+                                    Wpisów: {scout.activities}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-muted small mb-2">
+                              Ostatni wpis: {scout.last
                                 ? (() => {
                                     if (typeof scout.last === "object" && scout.last.seconds) {
                                       return new Date(scout.last.seconds * 1000).toLocaleDateString("pl-PL");
@@ -1051,43 +1192,51 @@ async function handleNotificationToggle(checked) {
                                     return "Brak wpisów";
                                   })()
                                 : "Brak wpisów"}
-                            </td>
-                            <td className="text-center align-middle">
-                              <div className={`d-flex gap-2 justify-content-center ${isMobile ? "flex-wrap" : ""}`}>
-                                <Button
-                                  variant="outline-primary"
-                                  size={isMobile ? "sm" : "md"}
-                                  style={isMobile ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem" } : {}}
-                                  title="Dodaj punkty"
-                                  onClick={() => handleOpenAddModal(scout.id)}
-                                >
-                                  <Plus size={isMobile ? 14 : 16} className="me-1" />
-                                  {isMobile ? "Dodaj" : "Dodaj punkty"}
-                                </Button>
-                                <Button
-                                  variant="outline-secondary"
-                                  size={isMobile ? "sm" : "md"}
-                                  style={
-                                    isMobile
-                                      ? { fontSize: "0.85rem", padding: "0.25rem 0.5rem", minWidth: "72px", justifyContent: "center" }
-                                      : {}
-                                  }
-                                  title="Informacje o zastępie"
-                                  onClick={() => {
-                                    const scoutData = zastepy.find(z => z.id === scout.id);
-                                    setScoutInfoData(scoutData);
-                                    setShowScoutInfoModal(true);
-                                  }}
-                                >
-                                  <Info size={isMobile ? 14 : 16} className="me-1" />
-                                  {isMobile ? <span style={{ opacity: 100 }}> Info</span> : "Dane zastępu"}
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );})}
-                      </tbody>
-                    </Table>
+                            </div>
+                          </div>
+                          {/* Punkty na lewo od przycisków, wyśrodkowane w pionie */}
+                          <div className="d-flex flex-column align-items-center justify-content-center" style={{ alignSelf: "center" }}>
+                            <div className="fs-2 fw-bold text-primary" style={{ lineHeight: 1 }}>
+                              {scout.points}
+                            </div>
+                            <div className="text-xs text-muted" style={{ lineHeight: 1 }}>
+                              pkt
+                            </div>
+                          </div>
+                          <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              title="Dodaj punkty"
+                              onClick={() => handleOpenAddModal(scout.id)}
+                              className="d-flex align-items-center"
+                            >
+                              <Plus size={16} className="me-1" />
+                              {!isMobile && <span>Dodaj punkty</span>}
+                            </Button>
+                            <Button
+                              variant="outline-secondary"
+                              size="sm"
+                              title="Informacje o zastępie"
+                              onClick={() => {
+                                const scoutData = zastepy.find(z => z.id === scout.id);
+                                setScoutInfoData(scoutData);
+                                setShowScoutInfoModal(true);
+                              }}
+                              className="d-flex align-items-center"
+                            >
+                              <Info size={16} className="me-1" />
+                              {!isMobile && <span>Dane zastępu</span>}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                    </div>
+                  </Card.Body>
+                </Card>
 
                     <Modal show={showScoutInfoModal} 
                            onHide={() => setShowScoutInfoModal(false)} 
@@ -1145,8 +1294,6 @@ async function handleNotificationToggle(checked) {
                         )}
                       </Modal.Body>
                     </Modal>
-                    </Card.Body>
-                  </Card>
 
                   {/* Modal dodawania punktów */}
                   <Modal show={showAddModal} 
@@ -1183,7 +1330,8 @@ async function handleNotificationToggle(checked) {
                       </Form.Select>
                       {/* Opcjonalnie opis kategorii */}
                       {addCategoryId && (
-                        <div className="text-muted mt-1" style={{ fontSize: "0.95rem" }}>
+                        <div className="text-muted mt-1" 
+                        style={{ fontSize: "0.95rem" , paddingTop: "0.5rem" }}>
                           <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === addCategoryId)?.scoringDesc }} />
                         </div>
                       )}
@@ -1281,14 +1429,17 @@ async function handleNotificationToggle(checked) {
           )}
 
           {tab === "history" && (
-          <Container fluid style={{
-            maxWidth: "100%",
-            margin: "0 auto",
-            padding: "0",
-            flex: 1,
-            marginTop: isMobile ? 0 : 0,
-            ...(darkMode ? darkModeStyles : {}),
-          }}>
+          <Container
+            fluid
+            style={{
+              maxWidth: "100%",
+              margin: "0 auto",
+              padding: isMobile ? "0" : "0 2rem",
+              flex: 1,
+              marginTop: isMobile ? 0 : 0,
+              ...(darkMode ? darkModeStyles : {}),
+            }}
+          >
             <Card style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <FileText size={20} className="me-2" />
@@ -1307,108 +1458,185 @@ async function handleNotificationToggle(checked) {
               <Card.Body style={darkMode ? darkCardStyle : {}}>
                 <Collapse in={showFilters || !isMobile}>
                   <div>
-                    <Row className="g-3 mb-3">
-                      <Col md={3}>
-                        <Form.Label>Zastęp</Form.Label>
-                        <Form.Select
-                          value={historyScout.length === 0 ? "ALL" : historyScout[0]}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setHistoryScout(val === "ALL" ? [] : [val]);
-                          }}
-                        >
-                          <option value="ALL">Wszystkie</option>
-                          {historyScoutOptions.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.name}</option>
-                          ))}
-                        </Form.Select>
-                      </Col>
-                      <Col md={3}>
-                        <Form.Label>Kategoria</Form.Label>
-                        <Form.Select
-                          value={historyCat.length === 0 ? "ALL" : historyCat[0]}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setHistoryCat(val === "ALL" ? [] : [val]);
-                          }}
-                        >
-                          <option value="ALL">Wszystkie</option>
-                          {historyCatOptions.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.name}</option>
-                          ))}
-                        </Form.Select>
-                      </Col>
-                      <Col md={3}>
-                        <Form.Label>Miesiąc</Form.Label>
-                        <Form.Select
-                          value={historyMonth.length === 0 ? "ALL" : historyMonth[0]}
-                          onChange={e => {
-                            const val = e.target.value;
-                            setHistoryMonth(val === "ALL" ? [] : [val]);
-                          }}
-                        >
-                          <option value="ALL">Wszystkie</option>
-                          {historyMonthOptions.map(opt => (
-                            <option key={opt.key} value={opt.key}>{opt.label}</option>
-                          ))}
-                        </Form.Select>
-                      </Col>
-                      <Col md={3}>
-                        <Form.Label>Wierszy na stronę</Form.Label>
-                        <Form.Select
-                          value={historyRowsPerPage}
-                          onChange={e => setHistoryRowsPerPage(Number(e.target.value))}
-                        >
-                          {[10, 20, 50, 100].map(opt => (
-                            <option key={opt} value={opt}>{opt}</option>
-                          ))}
-                        </Form.Select>
-                      </Col>
-                    </Row>
-                    <Row className="g-3 mb-3">
-                      <Col md={3}>
-                        <Form.Label>Data od</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={historyDateFrom}
-                          onChange={e => setHistoryDateFrom(e.target.value)}
-                        />
-                      </Col>
-                      <Col md={3}>
-                        <Form.Label>Data do</Form.Label>
-                        <Form.Control
-                          type="date"
-                          value={historyDateTo}
-                          onChange={e => setHistoryDateTo(e.target.value)}
-                        />
-                      </Col>
-                      {/* Desktop: przyciski po prawej, mobile: pod spodem */}
-                      {!isMobile && (
-                        <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
-                          <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
-                            Resetuj filtry
-                          </Button>
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => {
-                              setPunktacjeLoading(true);
-                              punktacjaListAll().then((data) => {
-                                setPunktacje(data);
-                                setPunktacjeLoading(false);
-                              });
+                    {isMobile ? (
+                      <Row className="g-3 mb-3">
+                        <Col xs={6}>
+                          <Form.Label>Zastęp</Form.Label>
+                          <Form.Select
+                            value={historyScout.length === 0 ? "ALL" : historyScout[0]}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setHistoryScout(val === "ALL" ? [] : [val]);
                             }}
-                            className="ms-2"
                           >
-                            Odśwież punktację
-                          </Button>
-                          <div className="text-muted ms-2">
-                            Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
-                          </div>
+                            <option value="ALL">Wszystkie</option>
+                            {historyScoutOptions.map(opt => (
+                              <option key={opt.id} value={opt.id}>{opt.name}</option>
+                            ))}
+                          </Form.Select>
                         </Col>
-                      )}
-                    </Row>
-                    {/* Mobile: przyciski pod spodem */}
+                        <Col xs={6}>
+                          <Form.Label>Kategoria</Form.Label>
+                          <Form.Select
+                            value={historyCat.length === 0 ? "ALL" : historyCat[0]}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setHistoryCat(val === "ALL" ? [] : [val]);
+                            }}
+                          >
+                            <option value="ALL">Wszystkie</option>
+                            {historyCatOptions.map(opt => (
+                              <option key={opt.id} value={opt.id}>{opt.name}</option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                        <Col xs={6}>
+                          <Form.Label>Miesiąc</Form.Label>
+                          <Form.Select
+                            value={historyMonth.length === 0 ? "ALL" : historyMonth[0]}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setHistoryMonth(val === "ALL" ? [] : [val]);
+                            }}
+                          >
+                            <option value="ALL">Wszystkie</option>
+                            {historyMonthOptions.map(opt => (
+                              <option key={opt.key} value={opt.key}>{opt.label}</option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                        <Col xs={6}>
+                          <Form.Label>Wierszy na stronę</Form.Label>
+                          <Form.Select
+                            value={historyRowsPerPage}
+                            onChange={e => setHistoryRowsPerPage(Number(e.target.value))}
+                          >
+                            {[10, 20, 50, 100].map(opt => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </Form.Select>
+                        </Col>
+                        <Col xs={6}>
+                          <Form.Label>Data od</Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={historyDateFrom}
+                            onChange={e => setHistoryDateFrom(e.target.value)}
+                          />
+                        </Col>
+                        <Col xs={6}>
+                          <Form.Label>Data do</Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={historyDateTo}
+                            onChange={e => setHistoryDateTo(e.target.value)}
+                          />
+                        </Col>
+                      </Row>
+                    ) : (
+                      <>
+                        <Row className="g-3 mb-3">
+                          <Col md={3}>
+                            <Form.Label>Zastęp</Form.Label>
+                            <Form.Select
+                              value={historyScout.length === 0 ? "ALL" : historyScout[0]}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setHistoryScout(val === "ALL" ? [] : [val]);
+                              }}
+                            >
+                              <option value="ALL">Wszystkie</option>
+                              {historyScoutOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.name}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                          <Col md={3}>
+                            <Form.Label>Kategoria</Form.Label>
+                            <Form.Select
+                              value={historyCat.length === 0 ? "ALL" : historyCat[0]}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setHistoryCat(val === "ALL" ? [] : [val]);
+                              }}
+                            >
+                              <option value="ALL">Wszystkie</option>
+                              {historyCatOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.name}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                          <Col md={3}>
+                            <Form.Label>Miesiąc</Form.Label>
+                            <Form.Select
+                              value={historyMonth.length === 0 ? "ALL" : historyMonth[0]}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setHistoryMonth(val === "ALL" ? [] : [val]);
+                              }}
+                            >
+                              <option value="ALL">Wszystkie</option>
+                              {historyMonthOptions.map(opt => (
+                                <option key={opt.key} value={opt.key}>{opt.label}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                          <Col md={3}>
+                            <Form.Label>Wierszy na stronę</Form.Label>
+                            <Form.Select
+                              value={historyRowsPerPage}
+                              onChange={e => setHistoryRowsPerPage(Number(e.target.value))}
+                            >
+                              {[10, 20, 50, 100].map(opt => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
+                            </Form.Select>
+                          </Col>
+                        </Row>
+                        <Row className="g-3 mb-3">
+                          <Col md={3}>
+                            <Form.Label>Data od</Form.Label>
+                            <Form.Control
+                              type="date"
+                              value={historyDateFrom}
+                              onChange={e => setHistoryDateFrom(e.target.value)}
+                            />
+                          </Col>
+                          <Col md={3}>
+                            <Form.Label>Data do</Form.Label>
+                            <Form.Control
+                              type="date"
+                              value={historyDateTo}
+                              onChange={e => setHistoryDateTo(e.target.value)}
+                            />
+                          </Col>
+                          {!isMobile && (
+                            <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
+                              <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                                Resetuj filtry
+                              </Button>
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => {
+                                  setPunktacjeLoading(true);
+                                  punktacjaListAll().then((data) => {
+                                    setPunktacje(data);
+                                    setPunktacjeLoading(false);
+                                  });
+                                }}
+                                className="ms-2"
+                              >
+                                Odśwież punktację
+                              </Button>
+                              <div className="text-muted ms-2">
+                                Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
+                              </div>
+                            </Col>
+                          )}
+                        </Row>
+                      </>
+                    )}
                     {isMobile && (
                       <div className="d-flex flex-column gap-2 mt-2">
                         <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
@@ -1440,7 +1668,6 @@ async function handleNotificationToggle(checked) {
                   <div className="text-muted py-5 text-center">Brak wpisów punktacji dla wybranych filtrów.</div>
                 ) : (
                   <>
-                    {/* Lista wpisów punktacji w stylu kart, 2 kolumny na desktop */}
                     <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"} >
                       {paginatedHistoryRecords.map((rec) => (
                         <div
@@ -1448,13 +1675,27 @@ async function handleNotificationToggle(checked) {
                           className={isDesktopWide ? "col-md-6" : ""}
                           style={isDesktopWide ? { display: "flex" } : {}}
                         >
-                          <div className="bg-light rounded-lg border p-4 w-100" style={isDesktopWide ? { minHeight: 0 } : {}}>
+                          <div
+                            className="bg-light rounded-lg border w-100"
+                            style={{
+                              padding: isMobile ? "0.75rem" : "1.5rem",
+                              minHeight: isDesktopWide ? 0 : undefined
+                            }}
+                          >
                             <div className="d-flex align-items-start justify-content-between gap-4">
-                              {/* Lewa część - główne informacje */}
                               <div className="flex-grow-1">
                                 <div className="d-flex align-items-center gap-3 mb-2">
                                   <div>
-                                    <Trophy size={20} />
+                                    {(() => {
+                                      const catId = rec.scoreCat?.[0]?.id;
+                                      const cat = scoringCategories.find(c => c.id === catId);
+                                      if (cat?.scoringIcon) {
+                                        // Jeśli scoringIcon to nazwa z lucide-react, np. "Trophy", "Star", "Award"
+                                        const IconComponent = require("lucide-react")[cat.scoringIcon];
+                                        return IconComponent ? <IconComponent size={20} /> : <Trophy size={20} />;
+                                      }
+                                      return <Trophy size={20} />;
+                                    })()}
                                   </div>
                                   <div>
                                     <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
@@ -1462,24 +1703,34 @@ async function handleNotificationToggle(checked) {
                                     </h4>
                                   </div>
                                 </div>
-                                {/* Data, miesiąc, zastęp */}
                                 <div className="d-flex flex-column flex-md-row align-items-md-center gap-2 text-xs text-muted mb-2">
-                                  <div>
+                                  <div
+                                    style={isMobile ? { fontSize: "0.85rem" } : {}}
+                                  >
                                     {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
                                   </div>
                                   <div className="d-block d-md-none mt-1">
                                     <Badge bg="secondary" className="text-xs">
                                       {teamScouts.find(z => z.id === rec.scoreTeam?.[0]?.id)?.name || "?"}
                                     </Badge>
+                                    {rec.scoreScout?.[0]?.snapshot?.name && rec.scoreScout?.[0]?.snapshot?.surname && (
+                                      <Badge bg="success" className="text-xs ms-2">
+                                        {rec.scoreScout[0].snapshot.name} {rec.scoreScout[0].snapshot.surname}
+                                      </Badge>
+                                    )}
                                   </div>
                                   <div className="d-none d-md-block ms-3">
                                     <Badge bg="secondary" className="text-xs">
                                       {teamScouts.find(z => z.id === rec.scoreTeam?.[0]?.id)?.name || "?"}
                                     </Badge>
+                                    {rec.scoreScout?.[0]?.snapshot?.name && rec.scoreScout?.[0]?.snapshot?.surname && (
+                                      <Badge bg="success" className="text-xs ms-2">
+                                        {rec.scoreScout[0].snapshot.name} {rec.scoreScout[0].snapshot.surname}
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               </div>
-                              {/* Środek - punkty */}
                               <div className="text-center flex-shrink-0 px-2">
                                 <div className="fs-2 fw-bold text-primary">
                                   {rec.scoreValue}
@@ -1488,52 +1739,68 @@ async function handleNotificationToggle(checked) {
                                   pkt
                                 </div>
                               </div>
-                              {/* Prawa część - przyciski akcji */}
-                              <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline-secondary"
-                                  onClick={() => openEditEntryModal(rec)}
-                                  className="mb-1"
-                                  title="Edytuj"
-                                >
-                                  <Edit size={14} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline-danger"
-                                  onClick={() => openDeleteEntryModal(rec)}
-                                  title="Usuń"
-                                >
-                                  <Trash2 size={14} />
-                                </Button>
-                                {rec.scoreInfo && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline-primary"
-                                    className="mt-1"
-                                    title="Pokaż uwagi"
-                                    onClick={() => {
-                                      setNotesHtml(rec.scoreInfo);
-                                      setNotesTitle("Uwagi do wpisu");
-                                      setShowNotesModal(true);
-                                    }}
-                                  >
-                                    <Info size={16} />
-                                  </Button>
-                                )}
-                              </div>
+<div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+  <Button
+    size="sm"
+    variant="outline-secondary"
+    onClick={() => openEditEntryModal(rec)}
+    className="mb-1 d-flex align-items-center"
+    title="Edytuj"
+    style={{
+      minWidth: !isMobile ? 75 : undefined,
+      justifyContent: "flex-start",
+      textAlign: "left",
+    }}
+  >
+    <Edit size={14} />
+    {!isMobile && <span className="ms-1">Edytuj</span>}
+  </Button>
+  <Button
+    size="sm"
+    variant="outline-danger"
+    onClick={() => openDeleteEntryModal(rec)}
+    className="d-flex align-items-center"
+    title="Usuń"
+    style={{
+      minWidth: !isMobile ? 75 : undefined,
+      justifyContent: "flex-start",
+      textAlign: "left",
+    }}
+  >
+    <Trash2 size={14} />
+    {!isMobile && <span className="ms-1">Usuń</span>}
+  </Button>
+  {rec.scoreInfo && (
+    <Button
+      size="sm"
+      variant="outline-primary"
+      className="mt-1 d-flex align-items-center"
+      title="Pokaż uwagi"
+      onClick={() => {
+        setNotesHtml(rec.scoreInfo);
+        setNotesTitle("Uwagi do wpisu");
+        setShowNotesModal(true);
+      }}
+      style={{
+        minWidth: !isMobile ? 75 : undefined,
+        justifyContent: "flex-start",
+        textAlign: "left",
+      }}
+    >
+      <Info size={16} />
+      {!isMobile && <span className="ms-1">Uwagi</span>}
+    </Button>
+  )}
+</div>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
-
-                    {/* Modal z uwagami */}
                     <Modal show={showNotesModal} 
-                           onHide={() => setShowNotesModal(false)} 
-                           centered
-                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                          onHide={() => setShowNotesModal(false)} 
+                          centered
+                          container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{notesTitle}</Modal.Title>
                       </Modal.Header>
@@ -1541,8 +1808,6 @@ async function handleNotificationToggle(checked) {
                         <div dangerouslySetInnerHTML={{ __html: notesHtml }} />
                       </Modal.Body>
                     </Modal>
-
-                    {/* Paginacja */}
                     {totalHistoryPages > 1 && (
                       <div className="d-flex justify-content-center mt-3">
                         <Pagination>
@@ -1562,11 +1827,10 @@ async function handleNotificationToggle(checked) {
                         </Pagination>
                       </div>
                     )}
-                    {/* Modal z opisem kategorii */}
                     <Modal show={showCatDesc} 
-                           onHide={() => setShowCatDesc(false)} 
-                           centered
-                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                          onHide={() => setShowCatDesc(false)} 
+                          centered
+                          container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>{catDescTitle}</Modal.Title>
                       </Modal.Header>
@@ -1574,98 +1838,142 @@ async function handleNotificationToggle(checked) {
                         <div dangerouslySetInnerHTML={{ __html: catDescHtml }} />
                       </Modal.Body>
                     </Modal>
-                    {/* Modal edycji wpisu */}
                     <Modal show={showEditEntryModal} 
-                           onHide={closeEditEntryModal} 
-                           centered
-                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                        onHide={closeEditEntryModal} 
+                        centered
+                        container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Edytuj wpis punktacji</Modal.Title>
                       </Modal.Header>
                       <Modal.Body>
-                        {editEntrySuccess ? (
-                          <Alert variant="success" className="mb-0">
-                            Zmiany zostały zapisane.
-                          </Alert>
-                        ) : editEntryData && (
-                          <Form onSubmit={handleEditEntrySubmit}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Zastęp</Form.Label>
-                              <Form.Select value={editEntryData.scoreTeam?.[0]?.id || ""} disabled>
-                                {teamScouts.map((scout) => (
-                                  <option key={scout.id} value={scout.id}>{scout.name}</option>
-                                ))}
-                              </Form.Select>
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Kategoria</Form.Label>
-                              <Form.Select value={editEntryData.scoreCat?.[0]?.id || ""} disabled>
-                                {historyCatOptions.map((cat) => (
-                                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                                ))}
-                              </Form.Select>
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Opis działania</Form.Label>
-                              <Form.Control
-                                as="textarea"
-                                rows={2}
-                                defaultValue={editEntryData.scoreInfo || ""}
-                              />
-                            </Form.Group>
-                            <Row>
-                              <Col>
+                        <Modal.Body>
+                          {editEntrySuccess ? (
+                            <Alert variant="success" className="mb-0">
+                              Wpis został zaktualizowany.
+                            </Alert>
+                          ) : editEntryData && (
+                            <Form onSubmit={handleEditEntrySubmit}>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Zastęp</Form.Label>
+                                <Form.Select value={editScoutId || ""} disabled>
+                                  <option>Wybierz zastęp</option>
+                                  {teamScouts.map((scout) => (
+                                    <option key={scout.id} value={scout.id}>{scout.name}</option>
+                                  ))}
+                                </Form.Select>
+                              </Form.Group>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Kategoria</Form.Label>
+                                <Form.Select
+                                  value={editCategoryId}
+                                  onChange={e => setEditCategoryId(e.target.value)}
+                                  required
+                                >
+                                  <option value="">Wybierz kategorię</option>
+                                  {scoringCategories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                      {cat.scoringName}
+                                    </option>
+                                  ))}
+                                </Form.Select>
+                                {editCategoryId && (
+                                  <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                                    <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.id === editCategoryId)?.scoringDesc }} />
+                                  </div>
+                                )}
+                              </Form.Group>
+                              {editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && (
                                 <Form.Group className="mb-3">
-                                  <Form.Label>Punkty (1-10)</Form.Label>
-                                  <Form.Control
-                                    type="number"
-                                    min={1}
-                                    max={10}
-                                    defaultValue={editEntryData.scoreValue}
-                                  />
+                                  <Form.Label>Harcerz</Form.Label>
+                                  <Form.Select
+                                    value={editScoutPersonId}
+                                    onChange={e => setEditScoutPersonId(e.target.value)}
+                                    required={scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                                    disabled={!scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd}
+                                  >
+                                    <option value="">Wybierz harcerza</option>
+                                    {zastepy.find(z => z.id === editScoutId)?.harcerze?.map(h => (
+                                      <option key={h.id} value={h.id}>{h.name} {h.surname}</option>
+                                    ))}
+                                  </Form.Select>
                                 </Form.Group>
-                              </Col>
-                              <Col>
-                                <Form.Group className="mb-3">
-                                  <Form.Label>Data</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    defaultValue={formatDate(editEntryData.scoreAddDate)}
-                                  />
-                                </Form.Group>
-                              </Col>
-                            </Row>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Klasyfikacja miesięczna</Form.Label>
-                              <Form.Control
-                                type="month"
-                                defaultValue={
-                                  editEntryData.miesiac
-                                    ? `${editEntryData.miesiac.slice(0, 4)}-${editEntryData.miesiac.slice(4, 6)}`
-                                    : ""
+                              )}
+                              <Row>
+                                <Col>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>
+                                      Punkty ({editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                        ? `1-${scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal}`
+                                        : "1-10"})
+                                    </Form.Label>
+                                    <Form.Control
+                                      type="number"
+                                      min={1}
+                                      max={editCategoryId && scoringCategories.find(cat => cat.id === editCategoryId)?.scoringMaxVal
+                                        ? scoringCategories.find(cat => cat.id === editCategoryId).scoringMaxVal
+                                        : 10}
+                                      value={editPoints}
+                                      onChange={e => setEditPoints(e.target.value)}
+                                      required
+                                    />
+                                  </Form.Group>
+                                </Col>
+                                <Col>
+                                  <Form.Group className="mb-3">
+                                    <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                                    <Form.Select
+                                      value={editMonth}
+                                      onChange={e => setEditMonth(e.target.value)}
+                                      required
+                                    >
+                                      <option value="">Wybierz miesiąc</option>
+                                      <option value="202509">wrzesień 2025</option>
+                                      <option value="202510">październik 2025</option>
+                                      <option value="202511">listopad 2025</option>
+                                      <option value="202512">grudzień 2025</option>
+                                      <option value="202601">styczeń 2026</option>
+                                      <option value="202602">luty 2026</option>
+                                      <option value="202603">marzec 2026</option>
+                                      <option value="202604">kwiecień 2026</option>
+                                      <option value="202605">maj 2026</option>
+                                      <option value="202606">czerwiec 2026</option>
+                                    </Form.Select>
+                                  </Form.Group>
+                                </Col>
+                              </Row>
+                              <Form.Group className="mb-3">
+                                <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                                <Form.Control
+                                  as="textarea"
+                                  rows={2}
+                                  value={editNotes}
+                                  onChange={e => setEditNotes(e.target.value)}
+                                  placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                                />
+                              </Form.Group>
+                              <Button
+                                type="submit"
+                                variant="primary"
+                                className="w-100"
+                                disabled={
+                                  !editCategoryId ||
+                                  !editScoutId ||
+                                  !editPoints ||
+                                  !editMonth ||
+                                  (scoringCategories.find(cat => cat.id === editCategoryId)?.scoringScoutInd && !editScoutPersonId)
                                 }
-                              />
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Uwagi (opcjonalne)</Form.Label>
-                              <Form.Control
-                                as="textarea"
-                                rows={2}
-                                defaultValue={editEntryData.uwagi || ""}
-                              />
-                            </Form.Group>
-                            <Button type="submit" variant="primary" className="w-100">
-                              Zapisz zmiany
-                            </Button>
-                          </Form>
-                        )}
+                              >
+                                Zapisz zmiany
+                              </Button>
+                            </Form>
+                          )}
+                        </Modal.Body>
                       </Modal.Body>
                     </Modal>
-                    {/* Modal usuwania wpisu */}
                     <Modal show={showDeleteEntryModal} 
-                           onHide={closeDeleteEntryModal} 
-                           centered
-                           container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                          onHide={closeDeleteEntryModal} 
+                          centered
+                          container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                       <Modal.Header closeButton>
                         <Modal.Title>Usuń wpis punktacji</Modal.Title>
                       </Modal.Header>
@@ -1697,9 +2005,8 @@ async function handleNotificationToggle(checked) {
                 )}
               </Card.Body>
             </Card>
-            </Container>
-          )}
-
+          </Container>
+        )}
             {tab === "settings" && (
         <Card style={darkMode ? darkCardStyle : {}}>
           <Card.Header className="d-flex align-items-center gap-2">

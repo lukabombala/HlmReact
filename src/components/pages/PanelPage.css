@@ -103,3 +103,12 @@
   color: #e5e7eb !important;
   border-color: #333 !important;
 }
+
+@media (max-width: 767px) {
+  .card {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
