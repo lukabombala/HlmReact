@@ -1769,13 +1769,13 @@ async function handleNotificationToggle(checked) {
     className="mb-1 d-flex align-items-center"
     title="Edytuj"
     style={{
-      minWidth: !isMobile ? 110 : undefined,
+      minWidth: !isMobile ? 75 : undefined,
       justifyContent: "flex-start",
       textAlign: "left",
     }}
   >
     <Edit size={14} />
-    {!isMobile && <span className="ms-1">Edytuj wpis</span>}
+    {!isMobile && <span className="ms-1">Edytuj</span>}
   </Button>
   <Button
     size="sm"
@@ -1784,13 +1784,13 @@ async function handleNotificationToggle(checked) {
     className="d-flex align-items-center"
     title="Usuń"
     style={{
-      minWidth: !isMobile ? 110 : undefined,
+      minWidth: !isMobile ? 75 : undefined,
       justifyContent: "flex-start",
       textAlign: "left",
     }}
   >
     <Trash2 size={14} />
-    {!isMobile && <span className="ms-1">Usuń wpis</span>}
+    {!isMobile && <span className="ms-1">Usuń</span>}
   </Button>
   {rec.scoreInfo && (
     <Button
@@ -1804,7 +1804,7 @@ async function handleNotificationToggle(checked) {
         setShowNotesModal(true);
       }}
       style={{
-        minWidth: !isMobile ? 110 : undefined,
+        minWidth: !isMobile ? 75 : undefined,
         justifyContent: "flex-start",
         textAlign: "left",
       }}
