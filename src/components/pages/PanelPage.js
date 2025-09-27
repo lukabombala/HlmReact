@@ -1231,8 +1231,10 @@ async function handleNotificationToggle(checked) {
                               size="sm"
                               title="Dodaj punkty"
                               onClick={() => handleOpenAddModal(scout.id)}
+                              className="d-flex align-items-center"
                             >
                               <Plus size={16} className="me-1" />
+                              {!isMobile && <span>Dodaj punkty</span>}
                             </Button>
                             <Button
                               variant="outline-secondary"
@@ -1243,8 +1245,10 @@ async function handleNotificationToggle(checked) {
                                 setScoutInfoData(scoutData);
                                 setShowScoutInfoModal(true);
                               }}
+                              className="d-flex align-items-center"
                             >
                               <Info size={16} className="me-1" />
+                              {!isMobile && <span>Dane zastępu</span>}
                             </Button>
                           </div>
                         </div>
@@ -1757,40 +1761,59 @@ async function handleNotificationToggle(checked) {
                                   pkt
                                 </div>
                               </div>
-                              <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
-                                <Button
-                                  size="sm"
-                                  variant="outline-secondary"
-                                  onClick={() => openEditEntryModal(rec)}
-                                  className="mb-1"
-                                  title="Edytuj"
-                                >
-                                  <Edit size={14} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline-danger"
-                                  onClick={() => openDeleteEntryModal(rec)}
-                                  title="Usuń"
-                                >
-                                  <Trash2 size={14} />
-                                </Button>
-                                {rec.scoreInfo && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline-primary"
-                                    className="mt-1"
-                                    title="Pokaż uwagi"
-                                    onClick={() => {
-                                      setNotesHtml(rec.scoreInfo);
-                                      setNotesTitle("Uwagi do wpisu");
-                                      setShowNotesModal(true);
-                                    }}
-                                  >
-                                    <Info size={16} />
-                                  </Button>
-                                )}
-                              </div>
+<div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+  <Button
+    size="sm"
+    variant="outline-secondary"
+    onClick={() => openEditEntryModal(rec)}
+    className="mb-1 d-flex align-items-center"
+    title="Edytuj"
+    style={{
+      minWidth: !isMobile ? 110 : undefined,
+      justifyContent: "flex-start",
+      textAlign: "left",
+    }}
+  >
+    <Edit size={14} />
+    {!isMobile && <span className="ms-1">Edytuj wpis</span>}
+  </Button>
+  <Button
+    size="sm"
+    variant="outline-danger"
+    onClick={() => openDeleteEntryModal(rec)}
+    className="d-flex align-items-center"
+    title="Usuń"
+    style={{
+      minWidth: !isMobile ? 110 : undefined,
+      justifyContent: "flex-start",
+      textAlign: "left",
+    }}
+  >
+    <Trash2 size={14} />
+    {!isMobile && <span className="ms-1">Usuń wpis</span>}
+  </Button>
+  {rec.scoreInfo && (
+    <Button
+      size="sm"
+      variant="outline-primary"
+      className="mt-1 d-flex align-items-center"
+      title="Pokaż uwagi"
+      onClick={() => {
+        setNotesHtml(rec.scoreInfo);
+        setNotesTitle("Uwagi do wpisu");
+        setShowNotesModal(true);
+      }}
+      style={{
+        minWidth: !isMobile ? 110 : undefined,
+        justifyContent: "flex-start",
+        textAlign: "left",
+      }}
+    >
+      <Info size={16} />
+      {!isMobile && <span className="ms-1">Uwagi</span>}
+    </Button>
+  )}
+</div>
                             </div>
                           </div>
                         </div>
