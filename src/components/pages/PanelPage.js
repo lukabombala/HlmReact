@@ -1739,59 +1739,59 @@ async function handleNotificationToggle(checked) {
                                   pkt
                                 </div>
                               </div>
-<div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
-  <Button
-    size="sm"
-    variant="outline-secondary"
-    onClick={() => openEditEntryModal(rec)}
-    className="mb-1 d-flex align-items-center"
-    title="Edytuj"
-    style={{
-      minWidth: !isMobile ? 75 : undefined,
-      justifyContent: "flex-start",
-      textAlign: "left",
-    }}
-  >
-    <Edit size={14} />
-    {!isMobile && <span className="ms-1">Edytuj</span>}
-  </Button>
-  <Button
-    size="sm"
-    variant="outline-danger"
-    onClick={() => openDeleteEntryModal(rec)}
-    className="d-flex align-items-center"
-    title="Usuń"
-    style={{
-      minWidth: !isMobile ? 75 : undefined,
-      justifyContent: "flex-start",
-      textAlign: "left",
-    }}
-  >
-    <Trash2 size={14} />
-    {!isMobile && <span className="ms-1">Usuń</span>}
-  </Button>
-  {rec.scoreInfo && (
-    <Button
-      size="sm"
-      variant="outline-primary"
-      className="mt-1 d-flex align-items-center"
-      title="Pokaż uwagi"
-      onClick={() => {
-        setNotesHtml(rec.scoreInfo);
-        setNotesTitle("Uwagi do wpisu");
-        setShowNotesModal(true);
-      }}
-      style={{
-        minWidth: !isMobile ? 75 : undefined,
-        justifyContent: "flex-start",
-        textAlign: "left",
-      }}
-    >
-      <Info size={16} />
-      {!isMobile && <span className="ms-1">Uwagi</span>}
-    </Button>
-  )}
-</div>
+                              <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => openEditEntryModal(rec)}
+                                  className="mb-1 d-flex align-items-center"
+                                  title="Edytuj"
+                                  style={{
+                                    minWidth: !isMobile ? 75 : undefined,
+                                    justifyContent: "flex-start",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  <Edit size={14} />
+                                  {!isMobile && <span className="ms-1">Edytuj</span>}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => openDeleteEntryModal(rec)}
+                                  className="d-flex align-items-center"
+                                  title="Usuń"
+                                  style={{
+                                    minWidth: !isMobile ? 75 : undefined,
+                                    justifyContent: "flex-start",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                  {!isMobile && <span className="ms-1">Usuń</span>}
+                                </Button>
+                                {rec.scoreInfo && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    className="mt-1 d-flex align-items-center"
+                                    title="Pokaż uwagi"
+                                    onClick={() => {
+                                      setNotesHtml(rec.scoreInfo);
+                                      setNotesTitle("Uwagi do wpisu");
+                                      setShowNotesModal(true);
+                                    }}
+                                    style={{
+                                      minWidth: !isMobile ? 75 : undefined,
+                                      justifyContent: "flex-start",
+                                      textAlign: "left",
+                                    }}
+                                  >
+                                    <Info size={16} />
+                                    {!isMobile && <span className="ms-1">Uwagi</span>}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -2051,7 +2051,7 @@ async function handleNotificationToggle(checked) {
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <AlertTriangle size={20} className="me-2" />
-                <span className="fw-semibold">Zgłoś błąd</span>
+                <span className="fw-semibold">Zgłoś błąd lub sugestię</span>
               </Card.Header>
               <Card.Body>
                 <div className="text-center text-muted py-5">
