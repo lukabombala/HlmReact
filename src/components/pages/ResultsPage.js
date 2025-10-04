@@ -8,6 +8,8 @@ export default function ResultsTable() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [res, setRes] = useState([]);
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   const fetchData = async () => {
       setLoading(true);
   
@@ -113,7 +115,13 @@ export default function ResultsTable() {
           minHeight: "80vh",
           background: "#f8f9fa" 
         }}>
-      <Container>
+      <Container
+          style={
+            isMobile
+              ? { paddingLeft: 5, paddingRight: 5 }
+              : undefined
+          }
+        >
 
         {console.log(res)}
         <div className="text-center mb-5">
@@ -121,101 +129,114 @@ export default function ResultsTable() {
         </div>
 
         {/* Podium - Top 3 */}
-        <Row xs={1} md={3} className="g-4 mb-4">
-          {topThree.map((team) => (
-            <Col key={team.position}>
-              <Card
-                className="text-center border-2 h-100"
-                style={getPodiumCardStyle(team.position)}
-              >
-                <Card.Body>
-                  {/* Desktop layout */}
-                  <div className="d-none d-md-flex justify-content-between align-items-center mb-2">
-                    <div className="text-start" style={{ flex: 1 }}>
-                      <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{team.name}</div>
-                      <div className="text-muted small">{team.team}</div>
+          <Row xs={1} md={3} className="g-4 mb-4">
+            {topThree.map((team) => (
+              <Col key={team.position}>
+                <Card
+                  className="text-center border-2 h-100"
+                  style={getPodiumCardStyle(team.position)}
+                >
+                  <Card.Body>
+                    {/* Desktop layout */}
+                    <div className="d-none d-md-flex justify-content-between align-items-center mb-2">
+                      <div className="text-start" style={{ flex: 1 }}>
+                        <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{team.name}</div>
+                        <div className="text-muted small">{team.team}</div>
+                      </div>
+                      <Badge
+                        bg="primary"
+                        className="px-4 py-2 ms-2" // <-- zwiększony padding z boków (px-4)
+                        style={{ fontSize: "1.1rem" }}
+                      >
+                        {team.points} pkt
+                      </Badge>
+                      <div className="ms-2">
+                        {team.position === 1 && <Trophy size={28} style={{ color: "#eab308" }} />}
+                        {team.position === 2 && <Medal size={28} style={{ color: "#a3a3a3" }} />}
+                        {team.position === 3 && <Award size={28} style={{ color: "#f59e42" }} />}
+                      </div>
                     </div>
-                    <Badge bg="primary" className="px-3 py-2 ms-2" style={{ fontSize: "1.1rem" }}>
-                      {team.points} pkt
-                    </Badge>
-                    <div className="ms-2">
-                      {team.position === 1 && <Trophy size={28} style={{ color: "#eab308" }} />}
-                      {team.position === 2 && <Medal size={28} style={{ color: "#a3a3a3" }} />}
-                      {team.position === 3 && <Award size={28} style={{ color: "#f59e42" }} />}
+                    {/* Mobile layout */}
+                    <div className="d-flex d-md-none justify-content-center align-items-center mb-2" style={{ gap: "1.5rem" }}>
+                      <div>
+                        <div className="fw-bold" style={{ fontSize: "1rem" }}>{team.name}</div>
+                        <div className="text-muted small">{team.team}</div>
+                      </div>
+                      <Badge
+                        bg="primary"
+                        className="px-4 py-1" 
+                        style={{ fontSize: "1rem" }}
+                      >
+                        {team.points} pkt
+                      </Badge>
+                      <div>
+                        {team.position === 1 && <Trophy size={22} style={{ color: "#eab308" }} />}
+                        {team.position === 2 && <Medal size={22} style={{ color: "#a3a3a3" }} />}
+                        {team.position === 3 && <Award size={22} style={{ color: "#f59e42" }} />}
+                      </div>
                     </div>
-                  </div>
-                  {/* Mobile layout */}
-                  <div className="d-flex d-md-none justify-content-center align-items-center mb-2" style={{ gap: "1.5rem" }}>
-                    <div>
-                      <div className="fw-bold" style={{ fontSize: "1rem" }}>{team.name}</div>
-                      <div className="text-muted small">{team.team}</div>
-                    </div>
-                    <Badge bg="primary" className="px-2 py-1" style={{ fontSize: "1rem" }}>
-                      {team.points} pkt
-                    </Badge>
-                    <div>
-                      {team.position === 1 && <Trophy size={22} style={{ color: "#eab308" }} />}
-                      {team.position === 2 && <Medal size={22} style={{ color: "#a3a3a3" }} />}
-                      {team.position === 3 && <Award size={22} style={{ color: "#f59e42" }} />}
-                    </div>
-                  </div>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
 
         <Card className="mb-4">
           <Card.Header className="d-flex align-items-center gap-2">
             <Trophy size={20} className="me-2" />
             <span className="fw-semibold">Tabela punktacji - sezon 2025/2026</span>
           </Card.Header>
-          <Card.Body>
+          <Card.Body
+            style={{
+              paddingLeft: isMobile ? "0.2rem" : undefined,
+              paddingRight: isMobile ? "0.2rem" : undefined
+            }}
+          >
             <div style={{ overflowX: "auto" }}>
               <Table bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th style={{ width: 80 }}>Miejsce</th>
-                    <th>Zastęp</th>
-                    <th>Drużyna</th>
-                    <th className="text-center">Punkty</th>
-                    <th className="text-center">Strata</th>
+              <thead>
+                <tr>
+                  <th className="text-center" style={{ width: 80 }}>Miejsce</th>
+                  <th className="text-center">Zastęp</th>
+                  <th className="text-center">Drużyna</th>
+                  <th className="text-center">Punkty</th>
+                  <th className="text-center">Strata</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((team) => (
+                  <tr
+                    key={team.position}
+                    style={getRowStyle(team.position)}
+                    className="cursor-pointer"
+                    onClick={() => window.location.href = `/zastepy/${team.id}`}
+                  >
+                    <td className="text-center">
+                      <div className="d-flex align-items-center justify-content-center gap-2">
+                        {getPositionIcon(team.position)}
+                        <span>{team.position}</span>
+                      </div>
+                    </td>
+                    <td className="fw-medium text-center">
+                      <Link
+                        to={`/zastepy/${team.id}`}
+                        style={{ textDecoration: "none", color: "inherit" }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        {team.name}
+                      </Link>
+                    </td>
+                    <td className="text-muted small text-center">{team.team}</td>
+                    <td className="text-center">
+                      <Badge bg="primary">{team.points}</Badge>
+                    </td>
+                    <td className="text-center text-muted">
+                      {team.gap === 0 ? "-" : `-${team.gap}`}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {results.map((team) => (
-                    <tr
-                      key={team.position}
-                      style={getRowStyle(team.position)}
-                      className="cursor-pointer"
-                      onClick={() => window.location.href = `/zastepy/${team.id}`}
-                    >
-                      <td>
-                        <div className="d-flex align-items-center gap-2">
-                          {getPositionIcon(team.position)}
-                          <span>{team.position}</span>
-                        </div>
-                      </td>
-                      <td className="fw-medium">
-                        <Link
-                          to={`/zastepy/${team.id}`}
-                          style={{ textDecoration: "none", color: "inherit" }}
-                          onClick={e => e.stopPropagation()}
-                        >
-                          {team.name}
-                        </Link>
-                      </td>
-                      <td className="text-muted small">{team.team}</td>
-                      <td className="text-center">
-                        <Badge bg="primary">{team.points}</Badge>
-                      </td>
-                      <td className="text-center text-muted">
-                        {team.gap === 0 ? "-" : `-${team.gap}`}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
+                ))}
+              </tbody>
+            </Table>
             </div>
           </Card.Body>
         </Card>
