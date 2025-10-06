@@ -42,7 +42,7 @@ export default function HeroSection() {
             Śródroczna rywalizacja zastępów we Wrocławskim Hufcu Harcerzy "Starodrzew"
           </h4>
           <p className="fs-5 text-muted mx-auto" style={{ maxWidth: 500 }}>
-            Sezon 2025 zaczyna się już niedługo.
+            Sezon 2025 właśnie się rozpoczął!
           </p>
         </div>
         <Row xs={2} md={4} className="g-3 mb-2">

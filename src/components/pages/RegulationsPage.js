@@ -35,7 +35,7 @@ export default function RegulationsPage() {
             <div className="bg-light p-3 rounded mb-3">
               <h5 className="fw-semibold mb-2">Komenda HLM</h5>
               <p>Wszystkie kwestie sporne rozstrzygane są przez komendę HLM:</p>
-              <p className="fw-medium">pwd. Lucjan Rawiak - komendant</p>
+              <p className="fw-medium">pwd. Piotr Duda-Klimaszewski - komendant</p>
             </div>
             <p className="small text-muted">
               Obecnie rywalizacja toczy się między zastępami w Hufcu.
