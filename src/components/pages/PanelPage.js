@@ -2,7 +2,7 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Award, Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -63,7 +63,6 @@ const darkTextStyle = {
 
 export default function PanelPage() {
   const [tab, setTab] = useState("team");
-  const [showAddModal, setShowAddModal] = useState(false);
   const [addScoutId, setAddScoutId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRequest, setEditRequest] = useState("");
@@ -100,6 +99,13 @@ export default function PanelPage() {
   const [editMonth, setEditMonth] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [configSettings, setConfigSettings] = useState(null);
+  
+  // Dodaj stany dla osobnych modali:
+  const [showAddTypeModal, setShowAddTypeModal] = useState(false);
+  const [showAddTripModal, setShowAddTripModal] = useState(false);
+  const [showAddMeetingModal, setShowAddMeetingModal] = useState(false);
+  const [showAddCeremonyModal, setShowAddCeremonyModal] = useState(false);
+  const [showAddSingleModal, setShowAddSingleModal] = useState(false);
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -117,6 +123,89 @@ export default function PanelPage() {
   const messaging = getMessaging(app);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  const [ceremonyChecks, setCeremonyChecks] = useState({
+    proporzec: false,
+    mundur: false,
+    dodatkowa: false,
+  });
+  const ceremonyMonth = addMonth;
+  const ceremonyNotes = addNotes;
+
+  // Funkcja obsługi zmiany checkboxów
+  function handleCeremonyCheckChange(e) {
+    setCeremonyChecks({
+      ...ceremonyChecks,
+      [e.target.name]: e.target.checked,
+    });
+  }
+
+  // Funkcja obsługi dodania obrzędowości
+  async function handleAddCeremonySubmit(e) {
+    e.preventDefault();
+    const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+    const obrzedCat = scoringCategories.find(cat => cat.scoringKey === "obrzedowosc"); // lub inny klucz dla obrzędowości
+    if (!selectedScoutTeam || !obrzedCat) return;
+
+    const checks = [
+      { key: "proporzec", label: "Proporzec" },
+      { key: "mundur", label: "Oznaczenie na mundurze" },
+      { key: "dodatkowa", label: "Dodatkowa obrzędowość" },
+    ];
+
+  try {
+    for (const check of checks) {
+      if (ceremonyChecks[check.key]) {
+        await addPunktacjaEntry({
+          selectedCategory: obrzedCat,
+          selectedScoutTeam,
+          points: 1,
+          month: ceremonyMonth,
+          userEmail: user.email,
+          notes: ceremonyNotes,
+        });
+      }
+    }
+    setShowAddCeremonyModal(false);
+    setCeremonyChecks({ proporzec: false, mundur: false, dodatkowa: false });
+    setAddMonth("");
+    setAddNotes("");
+    setPunktacjeLoading(true);
+    punktacjaListAll().then((data) => {
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    });
+    toast.success("Dodano obrzędowość!");
+  } catch (err) {
+    alert("Błąd dodawania obrzędowości: " + err.message);
+    console.error("Błąd dodawania obrzędowości:", err);
+  }
+}
+
+// Funkcja do otwierania modala dodawania punktów
+function handleOpenAddModal(scoutId) {
+  setAddScoutId(scoutId);
+  setAddCategoryId("");         // resetuj kategorię
+  setAddScoutPersonId("");      // resetuj harcerza
+      setAddPoints("");             // resetuj punkty
+      setAddMonth("");              // resetuj miesiąc
+      setAddNotes("");              // resetuj uwagi
+      setShowAddTypeModal(true); // otwiera modal wyboru typu wpisu
+    }
+
+  // Funkcja do obsługi kafelków
+  function handleAddType(type) {
+    setShowAddTypeModal(false);
+    if (type === "single") {
+      setShowAddSingleModal(true);
+    } else if (type === "trip") {
+      setShowAddTripModal(true);
+    } else if (type === "meeting") {
+      setShowAddMeetingModal(true);
+    } else if (type === "ceremony") {
+      setShowAddCeremonyModal(true);
+    }
+  }
 
   // Funckja do usuwania wpisu
   async function handleDeleteEntryConfirm() {
@@ -456,16 +545,6 @@ async function handleNotificationToggle(checked) {
     setEditSent(true);
   }
 
-  function handleOpenAddModal(scoutId) {
-    setAddScoutId(scoutId);
-    setAddCategoryId("");         // resetuj kategorię
-    setAddScoutPersonId("");      // resetuj harcerza
-    setAddPoints("");             // resetuj punkty
-    setAddMonth("");              // resetuj miesiąc
-    setAddNotes("");              // resetuj uwagi
-    setShowAddModal(true);
-  }
-
  async function handleAddPointsSubmit(e) {
   e.preventDefault();
   const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
@@ -492,7 +571,7 @@ async function handleNotificationToggle(checked) {
       selectedScoutPerson, 
     });
 
-    setShowAddModal(false);
+    setShowAddSingleModal(false);
 
     setAddCategoryId("");
     setAddScoutPersonId("");
@@ -1263,15 +1342,15 @@ async function handleNotificationToggle(checked) {
                           </div>
                           <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
                             <Button
-                              variant="outline-primary"
-                              size="sm"
-                              title="Dodaj punkty"
-                              onClick={() => handleOpenAddModal(scout.id)}
-                              className="d-flex align-items-center"
-                            >
-                              <Plus size={16} className="me-1" />
-                              {!isMobile && <span>Dodaj punkty</span>}
-                            </Button>
+                          variant="outline-primary"
+                          size="sm"
+                          title="Dodaj punkty"
+                          onClick={() => handleOpenAddModal(scout.id)}
+                          className="d-flex align-items-center"
+                        >
+                          <Plus size={16} className="me-1" />
+                          {!isMobile && <span>Dodaj punkty</span>}
+                        </Button>
                             <Button
                               variant="outline-secondary"
                               size="sm"
@@ -1353,9 +1432,65 @@ async function handleNotificationToggle(checked) {
                       </Modal.Body>
                     </Modal>
 
+                  {/* MODAL WYBORU TYPU WPISU */}
+                  <Modal
+                    show={showAddTypeModal}
+                    onHide={() => setShowAddTypeModal(false)}
+                    centered
+                    container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+                  >
+                    <Modal.Header closeButton>
+                      <Modal.Title>Wybierz typ wpisu</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <Row className="g-3">
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-primary"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("single")}
+                          >
+                            <Trophy size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj pojedyńczy wpis</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-success"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("trip")}
+                          >
+                            <Users size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj wyjazd</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-warning"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("meeting")}
+                          >
+                            <Clock size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj zbiórkę</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-secondary"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("ceremony")}
+                          >
+                            <Award size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj obrzędowość</span>
+                          </Button>
+                        </Col>
+                      </Row>
+                    </Modal.Body>
+                  </Modal>
+                  
                   {/* Modal dodawania punktów */}
-                  <Modal show={showAddModal} 
-                      onHide={() => setShowAddModal(false)} 
+                  <Modal show={showAddSingleModal} 
+                      onHide={() => setShowAddSingleModal(false)} 
                       centered
                       container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                   <Modal.Header closeButton>
@@ -1485,6 +1620,144 @@ async function handleNotificationToggle(checked) {
               )}
             </>
           )}
+
+                    {/*MODAL DODAWANIA WYJAZDU */}
+          <Modal
+            show={showAddTripModal}
+            onHide={() => setShowAddTripModal(false)}
+            centered
+            container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Dodaj wyjazd</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="text-center text-muted py-5">
+                Formularz dodawania wyjazdu w przygotowaniu.
+              </div>
+            </Modal.Body>
+          </Modal>
+          
+          {/* MODAL DODAWANIA ZBIÓRKI*/}
+          <Modal
+            show={showAddMeetingModal}
+            onHide={() => setShowAddMeetingModal(false)}
+            centered
+            container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Dodaj zbiórkę</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="text-center text-muted py-5">
+                Formularz dodawania zbiórki w przygotowaniu.
+              </div>
+            </Modal.Body>
+          </Modal>
+
+          {/* MODAL DODAWANIA OBRZĘDOWOŚCI */}
+            <Modal
+              show={showAddCeremonyModal}
+              onHide={() => setShowAddCeremonyModal(false)}
+              centered
+              container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+            >
+              <Modal.Header closeButton>
+                <Modal.Title>Dodaj obrzędowość</Modal.Title>
+              </Modal.Header>
+              <Modal.Body>
+                <Form onSubmit={handleAddCeremonySubmit}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Zastęp</Form.Label>
+                    <Form.Select value={addScoutId || ""} disabled>
+                      <option>Wybierz zastęp</option>
+                      {teamScouts.map((scout) => (
+                        <option key={scout.id} value={scout.id}>{scout.name}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Kategoria</Form.Label>
+                    <Form.Select value="ceremony" disabled>
+                      <option value="ceremony">Obrzędowość zastępów</option>
+                    </Form.Select>
+                    {/* Opis kategorii */}
+                    <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                      <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.scoringKey === "ceremony")?.scoringDesc }} />
+                    </div>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Rodzaj obrzędowości</Form.Label>
+                    <Form.Check
+                      type="checkbox"
+                      label="Proporzec"
+                      name="proporzec"
+                      checked={ceremonyChecks.proporzec}
+                      onChange={handleCeremonyCheckChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label="Oznaczenie na mundurze"
+                      name="mundur"
+                      checked={ceremonyChecks.mundur}
+                      onChange={handleCeremonyCheckChange}
+                    />
+                    <Form.Check
+                      type="checkbox"
+                      label="Dodatkowa obrzędowość"
+                      name="dodatkowa"
+                      checked={ceremonyChecks.dodatkowa}
+                      onChange={handleCeremonyCheckChange}
+                    />
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                    <Form.Select
+                      value={addMonth}
+                      onChange={e => setAddMonth(e.target.value)}
+                      required
+                    >
+                      <option value="">Wybierz miesiąc</option>
+                      <option value="202509">wrzesień 2025</option>
+                      <option value="202510">październik 2025</option>
+                      <option value="202511">listopad 2025</option>
+                      <option value="202512">grudzień 2025</option>
+                      <option value="202601">styczeń 2026</option>
+                      <option value="202602">luty 2026</option>
+                      <option value="202603">marzec 2026</option>
+                      <option value="202604">kwiecień 2026</option>
+                      <option value="202605">maj 2026</option>
+                      <option value="202606">czerwiec 2026</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={addNotes}
+                      onChange={e => setAddNotes(e.target.value)}
+                      placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                    />
+                  </Form.Group>
+                  <Alert variant="info" className="mb-3" style={{ fontSize: "0.98em" }}>
+                    <strong>Uwaga:</strong> Dla każdego zaznaczonego rodzaju obrzędowości zostanie dodany osobny wpis.
+                  </Alert>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-100"
+                    disabled={
+                      !addScoutId ||
+                      !addMonth ||
+                      (!ceremonyChecks.proporzec && !ceremonyChecks.mundur && !ceremonyChecks.dodatkowa)
+                    }
+                  >
+                    Dodaj punkty
+                  </Button>
+                </Form>
+              </Modal.Body>
+            </Modal>
 
           {tab === "history" && (
           <Container
