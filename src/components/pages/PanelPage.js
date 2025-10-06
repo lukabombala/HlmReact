@@ -27,6 +27,9 @@ const NAV = [
   { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, 
 ];
 
+// Dodaj sekcję Audyt dla audytora
+const NAV_AUDIT = { key: "audit", label: "Audyt", icon: <AlertTriangle size={18} className="me-2" /> };
+
 // Pomocnicza funkcja do formatu miesiąca
 function getMonthLabelFromKey(key) {
   if (!key || key.length !== 6) return "brak";
@@ -261,6 +264,14 @@ async function handleNotificationToggle(checked) {
       setSelectedTeam(userWeb.jednostka[0].id);
     }
   }, [userWeb, teams]);
+
+  // Dodaj do menu Audyt jeśli użytkownik ma uprawnienia audytora
+  const navItems = useMemo(() => {
+    if (userWeb && userWeb.auditor === true) {
+      return [...NAV, NAV_AUDIT];
+    }
+    return NAV;
+  }, [userWeb]);
 
   useEffect(() => {
     if (!user || !user.email) {
@@ -785,7 +796,7 @@ async function handleNotificationToggle(checked) {
             <div className="fw-bold fs-5 mb-2" style={{ letterSpacing: 1 }}>Panel</div>
           </div>
           <nav className="flex-grow-1">
-            {NAV.map((item) => (
+            {navItems.map((item) => (
               <Button
                 key={item.key}
                 variant={tab === item.key ? "primary" : "light"}
@@ -810,47 +821,47 @@ async function handleNotificationToggle(checked) {
 
       {/* Top nav for mobile */}
       <nav
-      className="d-flex d-md-none justify-content-around align-items-stretch"
-      style={{
-        position: "fixed",
-        top: 72,
-        left: 0,
-        right: 0,
-        height: 54,
-        background: darkMode ? "#232326" : "#fff",
-        borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
-        zIndex: 100,
-        color: darkMode ? "#e5e7eb" : undefined,
-      }}
-    >
-      {NAV.map((item) => (
-        <Button
-          key={item.key}
-          variant={tab === item.key ? "primary" : "light"}
-          className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
-          style={{
-            border: "none",
-            borderRadius: 0,
-            fontWeight: 500,
-            background: tab === item.key ? "#e0e7ff" : "transparent",
-            color: tab === item.key ? "#1e293b" : "#374151",
-            boxShadow: "none",
-            flex: 1,
-            height: "100%",
-            minWidth: 0,
-            padding: 0,
-          }}
-          onClick={() => setTab(item.key)}
-        >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-            <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {item.icon}
+        className="d-flex d-md-none justify-content-around align-items-stretch"
+        style={{
+          position: "fixed",
+          top: 72,
+          left: 0,
+          right: 0,
+          height: 54,
+          background: darkMode ? "#232326" : "#fff",
+          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
+          zIndex: 100,
+          color: darkMode ? "#e5e7eb" : undefined,
+        }}
+      >
+        {navItems.map((item) => (
+          <Button
+            key={item.key}
+            variant={tab === item.key ? "primary" : "light"}
+            className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+            style={{
+              border: "none",
+              borderRadius: 0,
+              fontWeight: 500,
+              background: tab === item.key ? "#e0e7ff" : "transparent",
+              color: tab === item.key ? "#1e293b" : "#374151",
+              boxShadow: "none",
+              flex: 1,
+              height: "100%",
+              minWidth: 0,
+              padding: 0,
+            }}
+            onClick={() => setTab(item.key)}
+          >
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+              <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {item.icon}
+              </div>
+              <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
             </div>
-            <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
-          </div>
-        </Button>
-      ))}
-    </nav>
+          </Button>
+        ))}
+      </nav>
 
       {/* Main content */}
       <Container
@@ -2067,6 +2078,21 @@ async function handleNotificationToggle(checked) {
                 </div>
               </Card.Body>
                 </Card>
+              </Card.Body>
+            </Card>
+          )}
+
+          {/* Sekcja Audyt dla audytora */}
+          {tab === "audit" && (
+            <Card style={darkMode ? darkCardStyle : {}}>
+              <Card.Header className="d-flex align-items-center gap-2">
+                <AlertTriangle size={20} className="me-2" />
+                <span className="fw-semibold">Audyt</span>
+              </Card.Header>
+              <Card.Body>
+                <div className="text-center text-muted py-5">
+                  Tutaj pojawią się narzędzia audytowe. Funkcja w przygotowaniu.
+                </div>
               </Card.Body>
             </Card>
           )}
