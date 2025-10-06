@@ -132,51 +132,59 @@ export default function ResultsTable() {
           <Row xs={1} md={3} className="g-4 mb-4">
             {topThree.map((team) => (
               <Col key={team.position}>
-                <Card
-                  className="text-center border-2 h-100"
-                  style={getPodiumCardStyle(team.position)}
+                <Link
+                  to={`/zastepy/${team.id}`}
+                  style={{ textDecoration: "none" }}
                 >
-                  <Card.Body>
-                    {/* Desktop layout */}
-                    <div className="d-none d-md-flex justify-content-between align-items-center mb-2">
-                      <div className="text-start" style={{ flex: 1 }}>
-                        <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{team.name}</div>
-                        <div className="text-muted small">{team.team}</div>
+                  <Card
+                    className="text-center border-2 h-100"
+                    style={{
+                      ...getPodiumCardStyle(team.position),
+                      cursor: "pointer"
+                    }}
+                  >
+                    <Card.Body>
+                      {/* Desktop layout */}
+                      <div className="d-none d-md-flex justify-content-between align-items-center mb-2">
+                        <div className="text-start" style={{ flex: 1 }}>
+                          <div className="fw-bold" style={{ fontSize: "1.1rem" }}>{team.name}</div>
+                          <div className="text-muted small">{team.team}</div>
+                        </div>
+                        <Badge
+                          bg="primary"
+                          className="px-4 py-2 ms-2"
+                          style={{ fontSize: "1.1rem" }}
+                        >
+                          {team.points} pkt
+                        </Badge>
+                        <div className="ms-2">
+                          {team.position === 1 && <Trophy size={28} style={{ color: "#eab308" }} />}
+                          {team.position === 2 && <Medal size={28} style={{ color: "#a3a3a3" }} />}
+                          {team.position === 3 && <Award size={28} style={{ color: "#f59e42" }} />}
+                        </div>
                       </div>
-                      <Badge
-                        bg="primary"
-                        className="px-4 py-2 ms-2" // <-- zwiększony padding z boków (px-4)
-                        style={{ fontSize: "1.1rem" }}
-                      >
-                        {team.points} pkt
-                      </Badge>
-                      <div className="ms-2">
-                        {team.position === 1 && <Trophy size={28} style={{ color: "#eab308" }} />}
-                        {team.position === 2 && <Medal size={28} style={{ color: "#a3a3a3" }} />}
-                        {team.position === 3 && <Award size={28} style={{ color: "#f59e42" }} />}
+                      {/* Mobile layout */}
+                      <div className="d-flex d-md-none justify-content-center align-items-center mb-2" style={{ gap: "1.5rem" }}>
+                        <div>
+                          <div className="fw-bold" style={{ fontSize: "1rem" }}>{team.name}</div>
+                          <div className="text-muted small">{team.team}</div>
+                        </div>
+                        <Badge
+                          bg="primary"
+                          className="px-4 py-1"
+                          style={{ fontSize: "1rem" }}
+                        >
+                          {team.points} pkt
+                        </Badge>
+                        <div>
+                          {team.position === 1 && <Trophy size={22} style={{ color: "#eab308" }} />}
+                          {team.position === 2 && <Medal size={22} style={{ color: "#a3a3a3" }} />}
+                          {team.position === 3 && <Award size={22} style={{ color: "#f59e42" }} />}
+                        </div>
                       </div>
-                    </div>
-                    {/* Mobile layout */}
-                    <div className="d-flex d-md-none justify-content-center align-items-center mb-2" style={{ gap: "1.5rem" }}>
-                      <div>
-                        <div className="fw-bold" style={{ fontSize: "1rem" }}>{team.name}</div>
-                        <div className="text-muted small">{team.team}</div>
-                      </div>
-                      <Badge
-                        bg="primary"
-                        className="px-4 py-1" 
-                        style={{ fontSize: "1rem" }}
-                      >
-                        {team.points} pkt
-                      </Badge>
-                      <div>
-                        {team.position === 1 && <Trophy size={22} style={{ color: "#eab308" }} />}
-                        {team.position === 2 && <Medal size={22} style={{ color: "#a3a3a3" }} />}
-                        {team.position === 3 && <Award size={22} style={{ color: "#f59e42" }} />}
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
+                    </Card.Body>
+                  </Card>
+                </Link>
               </Col>
             ))}
           </Row>
