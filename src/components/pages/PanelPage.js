@@ -2,7 +2,7 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -99,6 +99,7 @@ export default function PanelPage() {
   const [editPoints, setEditPoints] = useState("");
   const [editMonth, setEditMonth] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [configSettings, setConfigSettings] = useState(null);
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -178,6 +179,52 @@ export default function PanelPage() {
     }
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const db = getFirestore(app);
+    getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzv")).then(snap => {
+      console.log("Config snap:", snap.exists(), snap.data());
+      if (snap.exists()) {
+        setConfigSettings(snap.data());
+      }
+    });
+  }, []);
+
+const deadlineDayOfMonth = configSettings?.settingsValue !== undefined
+  ? Number(configSettings.settingsValue)
+  : undefined;
+
+const flaggedEntries = useMemo(() => {
+  if (!punktacje || !Array.isArray(punktacje) || !deadlineDayOfMonth) return [];
+  return punktacje.filter(rec => {
+    if (!rec.miesiac || !rec.scoreAddDate) return false;
+    // rec.miesiac: np. "202510"
+    const year = parseInt(rec.miesiac.slice(0, 4), 10);
+    const month = parseInt(rec.miesiac.slice(4, 6), 10);
+    // Kolejny miesiąc
+    let nextMonth = month + 1;
+    let nextYear = year;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    // Deadline: koniec settingsValue dnia kolejnego miesiąca
+    const deadlineDate = new Date(nextYear, nextMonth - 1, deadlineDayOfMonth, 23, 59, 59, 999);
+
+    // Data dodania wpisu
+    let addDate;
+    if (typeof rec.scoreAddDate === "object" && rec.scoreAddDate.seconds) {
+      addDate = new Date(rec.scoreAddDate.seconds * 1000);
+    } else if (typeof rec.scoreAddDate === "string") {
+      addDate = new Date(rec.scoreAddDate);
+    } else {
+      return false;
+    }
+
+    // Jeśli wpis dodano po deadline, oflaguj
+    return addDate > deadlineDate;
+  });
+}, [punktacje, deadlineDayOfMonth]);
 
   // Pobierz preferencję z Firestore (np. w useEffect po zalogowaniu)
   useEffect(() => {
@@ -2083,19 +2130,88 @@ async function handleNotificationToggle(checked) {
           )}
 
           {/* Sekcja Audyt dla audytora */}
-          {tab === "audit" && (
-            <Card style={darkMode ? darkCardStyle : {}}>
-              <Card.Header className="d-flex align-items-center gap-2">
-                <AlertTriangle size={20} className="me-2" />
-                <span className="fw-semibold">Audyt</span>
-              </Card.Header>
-              <Card.Body>
-                <div className="text-center text-muted py-5">
-                  Tutaj pojawią się narzędzia audytowe. Funkcja w przygotowaniu.
+        {tab === "audit" && (
+          <Card style={darkMode ? darkCardStyle : {}}>
+            <Card.Header className="d-flex align-items-center gap-2">
+              <AlertTriangle size={20} className="me-2" />
+              <span className="fw-semibold">Audyt</span>
+            </Card.Header>
+            <Card.Body>
+              <h5 className="mb-4 fw-semibold">
+                Wpisy dodane po terminie
+              </h5>
+              {configSettings === null ? (
+                <div className="text-muted py-4 text-center">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Ładowanie ustawień audytu...
                 </div>
-              </Card.Body>
-            </Card>
-          )}
+              ) : flaggedEntries.length === 0 ? (
+                <div className="text-muted py-4 text-center">
+                  Brak wpisów dodanych po terminie.
+                </div>
+              ) : (
+                <Table bordered hover responsive style={darkMode ? darkTableStyle : {}}>
+              <thead>
+                <tr>
+                  <th>Zastęp</th>
+                  <th>Drużyna</th>
+                  <th>Kategoria</th>
+                  <th>Miesiąc</th>
+                  <th>Dodano</th>
+                  <th>Przekroczono</th>
+                  <th>Ostatni modyfikujący</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flaggedEntries.map(rec => {
+                  const year = parseInt(rec.miesiac.slice(0, 4), 10);
+                  const month = parseInt(rec.miesiac.slice(4, 6), 10);
+                  let nextMonth = month + 1;
+                  let nextYear = year;
+                  if (nextMonth > 12) {
+                    nextMonth = 1;
+                    nextYear += 1;
+                  }
+                  const deadlineDate = new Date(nextYear, nextMonth - 1, deadlineDayOfMonth, 23, 59, 59, 999);
+                  let addDate;
+                  if (typeof rec.scoreAddDate === "object" && rec.scoreAddDate.seconds) {
+                    addDate = new Date(rec.scoreAddDate.seconds * 1000);
+                  } else if (typeof rec.scoreAddDate === "string") {
+                    addDate = new Date(rec.scoreAddDate);
+                  }
+                  // Wylicz przekroczenie w godzinach
+                  let przekroczono = "-";
+                  if (addDate && deadlineDate && addDate > deadlineDate) {
+                    const diffMs = addDate.getTime() - deadlineDate.getTime();
+                    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+                    przekroczono = `${diffHours} h`;
+                  }
+                  return (
+                    <tr key={rec.id}>
+                      <td>{rec.scoreTeam?.[0]?.snapshot?.fullName || rec.scoreTeam?.[0]?.snapshot?.name || "-"}</td>
+                      <td>{rec.scoreTeam?.[0]?.snapshot?.teamName || rec.scoreTeam?.[0]?.snapshot?.druzyna || "-"}</td>
+                      <td>{rec.scoreCat?.[0]?.snapshot?.scoringName || "-"}</td>
+                      <td>{getMonthLabelFromKey(rec.miesiac)}</td>
+                      <td>
+                        {addDate
+                          ? addDate.toLocaleDateString("pl-PL") + " " + addDate.toLocaleTimeString("pl-PL")
+                          : "-"}
+                      </td>
+                      <td>{przekroczono}</td>
+                      <td>{rec.scoreModifiedBy || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+              )}
+              <div className="mt-3 text-muted" style={{ fontSize: "0.95em" }}>
+                Wpis za dany miesiąc należy dodać do końca dnia <b>{deadlineDayOfMonth}</b> dnia miesiąca kolejnego.<br />
+                Aplikacja sprawdza wpisy dodane po tym terminie i oflagowuje je powyżej.
+              </div>
+            </Card.Body>
+          </Card>
+        )}
         </div>
       </Container>
     </div>
