@@ -2,7 +2,7 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Award, Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Shield, Award, Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -20,15 +20,20 @@ import { addPunktacjaEntry } from "../../services/addPunktacjaEntry";
 
 const VAPID_KEY = "BJEDKEq906Kcu6wrniH5ct2lCxQiFueGKZ5DAAqTwKBsdEEBU2OOLn0FwANsqsKgfz5R1yJcFQibQ1Wk-2kpNxk"; 
 
-// Sidebar navigation items
 const NAV = [
-  { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
-  { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
-  { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, 
-];
+    { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
+    { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
+    // { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, // <- usuń z tej pozycji
+  ];
 
-// Dodaj sekcję Audyt dla audytora
-const NAV_AUDIT = { key: "audit", label: "Audyt", icon: <AlertTriangle size={18} className="me-2" /> };
+  // Dodaj sekcję Audyt dla audytora
+  const NAV_AUDIT = { key: "audit", label: "Audyt punktacji", icon: <AlertTriangle size={18} className="me-2" /> };
+
+  // Dodaj nową pozycję do menu tylko dla adminów
+  const NAV_ADMIN = { key: "admin", label: "Administracja", icon: <Shield size={18} className="me-2" /> };
+
+  // Dodaj ustawienia jako ostatni element
+  const NAV_SETTINGS = { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> };
 
 // Pomocnicza funkcja do formatu miesiąca
 function getMonthLabelFromKey(key) {
@@ -403,10 +408,11 @@ async function handleNotificationToggle(checked) {
 
   // Dodaj do menu Audyt jeśli użytkownik ma uprawnienia audytora
   const navItems = useMemo(() => {
-    if (userWeb && userWeb.auditor === true) {
-      return [...NAV, NAV_AUDIT];
-    }
-    return NAV;
+    let items = [...NAV];
+    if (userWeb && userWeb.auditor === true) items.push(NAV_AUDIT);
+    if (userWeb && userWeb.admin === true) items.push(NAV_ADMIN);
+    items.push(NAV_SETTINGS); // ustawienia zawsze na końcu
+    return items;
   }, [userWeb]);
 
   useEffect(() => {
@@ -946,48 +952,53 @@ async function handleNotificationToggle(checked) {
       </aside>
 
       {/* Top nav for mobile */}
-      <nav
-        className="d-flex d-md-none justify-content-around align-items-stretch"
-        style={{
-          position: "fixed",
-          top: 72,
-          left: 0,
-          right: 0,
-          height: 54,
-          background: darkMode ? "#232326" : "#fff",
-          borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
-          zIndex: 100,
-          color: darkMode ? "#e5e7eb" : undefined,
-        }}
-      >
-        {navItems.map((item) => (
-          <Button
-            key={item.key}
-            variant={tab === item.key ? "primary" : "light"}
-            className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
-            style={{
-              border: "none",
-              borderRadius: 0,
-              fontWeight: 500,
-              background: tab === item.key ? "#e0e7ff" : "transparent",
-              color: tab === item.key ? "#1e293b" : "#374151",
-              boxShadow: "none",
-              flex: 1,
-              height: "100%",
-              minWidth: 0,
-              padding: 0,
-            }}
-            onClick={() => setTab(item.key)}
-          >
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-              <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {item.icon}
+         <nav
+          className="d-flex d-md-none justify-content-start align-items-stretch"
+          style={{
+            position: "fixed",
+            top: 72,
+            left: 0,
+            right: 0,
+            height: 54,
+            background: darkMode ? "#232326" : "#fff",
+            borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
+            zIndex: 100,
+            color: darkMode ? "#e5e7eb" : undefined,
+            overflowX: "auto",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "thin",
+          }}
+        >
+          {navItems.map((item, idx) => (
+            <Button
+              key={item.key}
+              variant={tab === item.key ? "primary" : "light"}
+              className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+              style={{
+                border: "none",
+                borderRadius: 0,
+                fontWeight: 500,
+                background: tab === item.key ? "#e0e7ff" : "transparent",
+                color: tab === item.key ? "#1e293b" : "#374151",
+                boxShadow: "none",
+                width: 100, // stała szerokość
+                minWidth: 100,
+                maxWidth: 100,
+                height: "100%",
+                padding: 0,
+                marginRight: idx !== navItems.length - 1 ? 8 : 0, // odstęp tylko po prawej, oprócz ostatniego
+              }}
+              onClick={() => setTab(item.key)}
+            >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {item.icon}
+                </div>
+                <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
               </div>
-              <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
-            </div>
-          </Button>
-        ))}
-      </nav>
+            </Button>
+          ))}
+        </nav>
 
       {/* Main content */}
       <Container
@@ -2481,6 +2492,21 @@ async function handleNotificationToggle(checked) {
               <div className="mt-3 text-muted" style={{ fontSize: "0.95em" }}>
                 Wpis za dany miesiąc należy dodać do końca dnia <b>{deadlineDayOfMonth}</b> dnia miesiąca kolejnego.<br />
                 Aplikacja sprawdza wpisy dodane po tym terminie i oflagowuje je powyżej.
+              </div>
+            </Card.Body>
+          </Card>
+        )}
+
+        {/* .Tab administracyjny */}
+        {tab === "admin" && userWeb?.admin === true && (
+          <Card style={darkMode ? darkCardStyle : {}}>
+            <Card.Header className="d-flex align-items-center gap-2">
+              <Settings size={20} className="me-2" />
+              <span className="fw-semibold">Administracja</span>
+            </Card.Header>
+            <Card.Body>
+              <div className="text-center text-muted py-5">
+                Panel administracyjny w przygotowaniu.
               </div>
             </Card.Body>
           </Card>
