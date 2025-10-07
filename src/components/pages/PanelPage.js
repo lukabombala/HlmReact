@@ -640,7 +640,7 @@ async function handleNotificationToggle(checked) {
     // Dodaj stan dla ustawienia zaawansowanego okna dodawania punktów
   const [advancedAddPoints, setAdvancedAddPoints] = useState(() => {
     const stored = localStorage.getItem("advancedAddPoints");
-    return stored === null ? true : stored === "true";
+    return stored === null ? false : stored === "true";
   });
 
   // Obsługa zmiany toggle i zapis do localStorage
