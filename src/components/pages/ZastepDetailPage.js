@@ -308,13 +308,17 @@ export default function ZastepDetailPage() {
           <Card.Body>
               <div className="d-flex align-items-center gap-4 mb-3">
                 <Image
-                  src={typeof zastep.logo === "string" && zastep.logo.trim() ? zastep.logo : logoPlaceholder}
-                  roundedCircle
-                  width={120}
-                  height={120}
-                  alt="Logo zastępu"
-                  style={{ objectFit: "cover", background: "#f8f9fa" }}
-                />
+                src={
+                  Array.isArray(zastep.logo) && zastep.logo[0]?.downloadURL
+                    ? zastep.logo[0].downloadURL
+                    : logoPlaceholder
+                }
+                roundedCircle
+                width={120}
+                height={120}
+                alt="Logo zastępu"
+                style={{ objectFit: "cover", background: "#f8f9fa" }}
+              />
                 <div>
                   <h2 className="fw-bold mb-1">{zastep.fullName}</h2>
                   {zastep.jednostka && zastep.jednostka[0]?.snapshot.shortName && (
