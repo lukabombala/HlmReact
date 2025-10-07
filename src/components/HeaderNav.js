@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Container, Navbar, Nav, Button, Modal } from "react-bootstrap";
+import { Container, Navbar, Nav, Button, Modal, Form } from "react-bootstrap";
 import {
   Trophy,
   Users,
@@ -10,7 +10,11 @@ import {
   LogIn,
   LogOut,
   Box,
+  Lock, 
+  Unlock
 } from "lucide-react";
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { app } from "../firebaseConfig";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { configAll } from "../services/configList.mjs";
 import { useAuth } from "../AuthContext";
@@ -26,12 +30,67 @@ function HeaderNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
+
+  // Dodaj stany
+  const [privacyAccess, setPrivacyAccess] = useState(() => localStorage.getItem("privacyAccess") === "true");
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [privacyPassword, setPrivacyPassword] = useState("");
+  const [privacyError, setPrivacyError] = useState("");
+  const [privacyStayLogged, setPrivacyStayLogged] = useState(false);
+
   useEffect(() => {
     configAll().then(configs => {
       const cupConfig = configs.find(c => c.id === "zzzzzzzzzzzzzzzzzzzy");
       setShowCup(!!(cupConfig && cupConfig.settingsToggle === true));
     });
   }, []);
+
+  // Funkcje obsługi
+  async function checkPrivacyPassword(pass) {
+    const db = getFirestore(app);
+    const snap = await getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzu"));
+    const correct = snap.exists() ? snap.data().settingsValue : null;
+    return pass === correct;
+  }
+  function handlePrivacyIconClick() {
+    setShowPrivacyModal(true);
+    setPrivacyError("");
+    setPrivacyPassword("");
+  }
+
+  function refreshPrivacyView() {
+    // Najprostszy sposób: przeładuj stronę
+    window.location.reload();
+  }
+
+  async function handlePrivacySubmit(e) {
+    e.preventDefault();
+    setPrivacyError("");
+    if (user) {
+      setShowPrivacyModal(false);
+      setPrivacyAccess(true);
+      localStorage.setItem("privacyAccess", "true");
+      refreshPrivacyView();
+      return;
+    }
+    const ok = await checkPrivacyPassword(privacyPassword);
+    if (ok) {
+      setShowPrivacyModal(false);
+      setPrivacyAccess(true);
+      localStorage.setItem("privacyAccess", "true"); // zawsze zapisuj dostęp do localStorage
+      setPrivacyPassword("");
+      refreshPrivacyView();
+    } else {
+      setPrivacyError("Nieprawidłowe hasło.");
+    }
+  }
+
+  function handlePrivacyHide() {
+    setPrivacyAccess(false);
+    localStorage.removeItem("privacyAccess");
+    setShowPrivacyModal(false);
+    refreshPrivacyView(); // odśwież widok
+  }
 
   const navItems = [
     { name: "Aktualności", icon: Calendar, to: "/" },
@@ -177,48 +236,70 @@ function HeaderNav() {
             <div className="ms-3 d-flex align-items-center flex-column flex-md-row w-100 w-md-auto">
               {/* Przyciski logowania/panel/wyloguj */}
               <div className="d-flex align-items-center">
-                {!user ? (
+              {!user ? (
+                <>
                   <Button
                     variant="outline-light"
                     size="sm"
                     className="d-flex align-items-center gap-1"
-                    style={{ fontWeight: 500 }}
+                    style={{ fontWeight: 500, height: 38 }}
                     onClick={() => setShowLogin(true)}
                   >
                     <LogIn size={16} className="me-1" />
                     Zaloguj się
                   </Button>
-                ) : (
-                  <>
-                    <Button
-                      as={Link}
-                      onClick={() => setExpanded(false)}
-                      to="/panel"
-                      variant="outline-light"
-                      size="sm"
-                      className="d-flex align-items-center gap-1 px-2"
-                      style={{ fontWeight: 500 }}
-                    >
-                      <Shield size={16} className="me-1" />
-                      Panel drużynowego
-                    </Button>
-                    <Button
-                      variant="outline-light"
-                      size="sm"
-                      title="Wyloguj się"
-                      className="d-flex align-items-center gap-1 ms-2"
-                      style={{ fontWeight: 500 }}
-                      onClick={async () => {
-                        await logout();
-                        navigate("/");
-                      }}
-                    >
-                      <LogOut size={16} className="me-1" />
-                      {user.email}
-                    </Button>
-                  </>
-                )}
-              </div>
+                  <Button
+                  variant="outline-light"
+                  size="sm"
+                  className="d-flex align-items-center justify-content-center ms-2 privacy-btn"
+                  style={{
+                    fontWeight: 500,
+                    height: 38,
+                    width: 38,
+                    padding: 0,
+                    borderRadius: "0.5rem",
+                    border: "1px solid #fff",
+                    background: "transparent",
+                    transition: "background 0.2s, border-color 0.2s",
+                  }}
+                  onClick={handlePrivacyIconClick}
+                  title={privacyAccess ? "Ukryj dane" : "Odblokuj dane"}
+                >
+                  {privacyAccess ? <Unlock size={18} /> : <Lock size={18} />}
+                </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    as={Link}
+                    onClick={() => setExpanded(false)}
+                    to="/panel"
+                    variant="outline-light"
+                    size="sm"
+                    className="d-flex align-items-center gap-1 px-2"
+                    style={{ fontWeight: 500 }}
+                  >
+                    <Shield size={16} className="me-1" />
+                    Panel drużynowego
+                  </Button>
+                  <Button
+                    variant="outline-light"
+                    size="sm"
+                    title="Wyloguj się"
+                    className="d-flex align-items-center gap-1 ms-2"
+                    style={{ fontWeight: 500 }}
+                    onClick={async () => {
+                      await logout();
+                      navigate("/");
+                    }}
+                  >
+                    <LogOut size={16} className="me-1" />
+                    {user.email}
+                  </Button>
+                </>
+              )}
+            </div>
+
               {/* Ikony social osobno na mobile */}
               {isMobile ? (
                 <div className="w-100 d-flex justify-content-center mt-2 gap-2">
@@ -356,6 +437,43 @@ function HeaderNav() {
           </Button>
         </Modal.Body>
       </Modal>
+
+      {/* Modal: Prywatność */}
+          <Modal show={showPrivacyModal} onHide={() => setShowPrivacyModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>{privacyAccess || user ? "Ukryj dane" : "Dostęp do danych"}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {privacyAccess || user ? (
+                <>
+                  <div className="mb-3 text-muted">Dane osobowe są obecnie widoczne. Kliknij poniżej, aby je ukryć.</div>
+                  <Button variant="danger" className="w-100" onClick={handlePrivacyHide}>
+                    Ukryj dane osobowe
+                  </Button>
+                </>
+              ) : (
+                <Form onSubmit={handlePrivacySubmit}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Hasło dostępu do danych osobowych</Form.Label>
+                    <Form.Control
+                      type="password"
+                      value={privacyPassword}
+                      onChange={e => setPrivacyPassword(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </Form.Group>
+                  {/* Usuń Form.Check z "Pozostań zalogowany" */}
+                  {privacyError && (
+                    <div className="text-danger mb-2">{privacyError}</div>
+                  )}
+                  <Button type="submit" variant="primary" className="w-100">
+                    Odblokuj dane osobowe
+                  </Button>
+                </Form>
+              )}
+            </Modal.Body>
+          </Modal>
     </Navbar>
   );
 }

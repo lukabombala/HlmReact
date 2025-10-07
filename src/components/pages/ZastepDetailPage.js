@@ -19,6 +19,7 @@ import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import "./ZastepDetailPage.css";
+import { useAuth } from "../../AuthContext";
 import { Medal, MedalIcon, Award } from "lucide-react";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
@@ -39,6 +40,8 @@ export default function ZastepDetailPage() {
   const { id } = useParams();
   const [zastep, setZastep] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const privacyAccess = typeof window !== "undefined" ? localStorage.getItem("privacyAccess") === "true" : false;
 
   // Punktacja
   const [scoreData, setScoreData] = useState([]);
@@ -396,33 +399,38 @@ export default function ZastepDetailPage() {
                     return (
                       <tr key={h.id}>
                       <td style={{ verticalAlign: "middle", width: "70%" }}>
-                        {h.zastepowy && (
-                        <div className="mb-1 d-flex justify-content-between align-items-center">
-                          <span title="Zastępowy" style={{ color: "#0d7337", fontWeight: 500, fontSize: "0.97em" }}>
-                          <UserCheck size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
-                          zastępowy
-                          </span>
-                        </div>
-                        )}
-                        {h.stopien && (
-                        <Badge
-                          bg="light"
-                          text="dark"
-                          className="me-2"
-                          style={{
-                          width: STOPIEN_BADGE_WIDTH,
-                          display: "inline-block",
-                          textAlign: "center",
-                          padding: "0.35em 0",
-                          fontWeight: 600,
-                          letterSpacing: "0.03em"
-                          }}
-                        >
-                          {h.stopien}
-                        </Badge>
-                        )}
-                        {h.name} {h.surname}
-                        {medal}
+                        {(privacyAccess || user)
+                          ? <>
+                              {h.zastepowy && (
+                                <div className="mb-1 d-flex justify-content-between align-items-center">
+                                  <span title="Zastępowy" style={{ color: "#0d7337", fontWeight: 500, fontSize: "0.97em" }}>
+                                    <UserCheck size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                                    zastępowy
+                                  </span>
+                                </div>
+                              )}
+                              {h.stopien && (
+                                <Badge
+                                  bg="light"
+                                  text="dark"
+                                  className="me-2"
+                                  style={{
+                                    width: STOPIEN_BADGE_WIDTH,
+                                    display: "inline-block",
+                                    textAlign: "center",
+                                    padding: "0.35em 0",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.03em"
+                                  }}
+                                >
+                                  {h.stopien}
+                                </Badge>
+                              )}
+                              {h.name} {h.surname}
+                              {medal}
+                            </>
+                          : <span className="text-muted">Dane ukryte</span>
+                        }
                       </td>
                       <td style={{ textAlign: "right", verticalAlign: "middle", width: "30%" }}>
                         <span className="fw-bold text-primary">{scoutPoints}</span>
@@ -729,10 +737,12 @@ export default function ZastepDetailPage() {
                                   <div>
                                     {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
                                     {rec.scoreScout?.[0]?.snapshot?.name && rec.scoreScout?.[0]?.snapshot?.surname && (
-                                      <Badge bg="success" className="ms-2">
-                                        {rec.scoreScout[0].snapshot.name} {rec.scoreScout[0].snapshot.surname}
-                                      </Badge>
-                                    )}
+                                    <Badge bg="success" className="ms-2">
+                                      {(privacyAccess || user)
+                                        ? `${rec.scoreScout[0].snapshot.name} ${rec.scoreScout[0].snapshot.surname}`
+                                        : "Dane ukryte"}
+                                    </Badge>
+                                  )}
                                   </div>
                                 </div>
                               </div>

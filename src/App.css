@@ -25,3 +25,10 @@ body, #root {
   background: #f3f7f4;
   text-decoration: none;
 }
+
+.privacy-btn:hover,
+.privacy-btn:focus {
+  background: rgba(255,255,255,0.10);
+  border-color: #fff;
+  color: #fff;
+}
