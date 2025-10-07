@@ -187,16 +187,20 @@ export default function PanelPage() {
   }
 }
 
-// Funkcja do otwierania modala dodawania punktów
-function handleOpenAddModal(scoutId) {
-  setAddScoutId(scoutId);
-  setAddCategoryId("");         // resetuj kategorię
-  setAddScoutPersonId("");      // resetuj harcerza
-      setAddPoints("");             // resetuj punkty
-      setAddMonth("");              // resetuj miesiąc
-      setAddNotes("");              // resetuj uwagi
-      setShowAddTypeModal(true); // otwiera modal wyboru typu wpisu
+  // Zmień funkcję otwierania modala dodawania punktów:
+  function handleOpenAddModal(scoutId) {
+    setAddScoutId(scoutId);
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+    setAddMonth("");
+    setAddNotes("");
+    if (advancedAddPoints) {
+      setShowAddTypeModal(true); // okno wyboru typu
+    } else {
+      setShowAddSingleModal(true); // od razu zwykły modal
     }
+  }
 
   // Funkcja do obsługi kafelków
   function handleAddType(type) {
@@ -632,6 +636,18 @@ async function handleNotificationToggle(checked) {
 
   // Liczba wpisów punktacji
   const totalActivities = teamPunktacje.length;
+
+    // Dodaj stan dla ustawienia zaawansowanego okna dodawania punktów
+  const [advancedAddPoints, setAdvancedAddPoints] = useState(() => {
+    const stored = localStorage.getItem("advancedAddPoints");
+    return stored === null ? true : stored === "true";
+  });
+
+  // Obsługa zmiany toggle i zapis do localStorage
+  function handleAdvancedAddPointsToggle(val) {
+    setAdvancedAddPoints(val);
+    localStorage.setItem("advancedAddPoints", val ? "true" : "false");
+  }
 
   // Zastępy z sumą punktów i wpisów
   const teamScouts = useMemo(() => {
@@ -2356,6 +2372,30 @@ async function handleNotificationToggle(checked) {
             <span className="fw-semibold">Ustawienia</span>
           </Card.Header>
           <Card.Body>
+
+            {/* Nowa karta: Główne ustawienia */}
+              <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+                <Card.Header className="d-flex align-items-center gap-2">
+                  <Settings size={20} className="me-2" />
+                  <span className="fw-semibold">Główne ustawienia</span>
+                </Card.Header>
+                <Card.Body>
+                  <Form>
+                    <Form.Check
+                      type="switch"
+                      id="advanced-add-points-switch"
+                      label="Wyświetlaj zaawansowane okna dodawania punktacji"
+                      checked={advancedAddPoints}
+                      onChange={e => handleAdvancedAddPointsToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                    />
+                    <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
+                      Jeśli wyłączysz tę opcję, po kliknięciu „Dodaj punkty” w sekcji Moje zastępy od razu otworzy się zwykłe okno dodawania punktów.
+                    </div>
+                  </Form>
+                </Card.Body>
+              </Card>
+
             {/* Karta: Funkcje eksperymentalne */}
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
