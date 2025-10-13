@@ -104,7 +104,32 @@ export default function PanelPage() {
   const [editMonth, setEditMonth] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [configSettings, setConfigSettings] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalText, setInfoModalText] = useState("");
+  const [infoModalVersion, setInfoModalVersion] = useState("");
   
+  // Pobierz dane z config (id: zzzzzzzzzzzzzzzzzzzt)
+  useEffect(() => {
+    const db = getFirestore(app);
+    getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzt")).then(snap => {
+      if (snap.exists()) {
+        const { settingsText, settingsValue } = snap.data();
+        setInfoModalText(settingsText || "");
+        setInfoModalVersion(settingsValue || "");
+        // Sprawdź w localStorage czy modal był ukryty dla tej wersji
+        const hiddenVersion = localStorage.getItem("panelInfoModalHiddenVersion");
+        if (settingsValue && hiddenVersion !== settingsValue) {
+          setShowInfoModal(true);
+        }
+      }
+    });
+  }, []);
+
+  // Funkcja obsługi "Nie pokazuj więcej"
+  function handleHideInfoModal() {
+    localStorage.setItem("panelInfoModalHiddenVersion", infoModalVersion);
+    setShowInfoModal(false);
+  }
   // Dodaj stan do obsługi obecności harcerzy w modalu zbiórki
   const [meetingPresence, setMeetingPresence] = useState([]);
 
@@ -1076,6 +1101,27 @@ async function handleNotificationToggle(checked) {
         </nav>
 
       {/* Main content */}
+      <Modal
+        show={showInfoModal}
+        onHide={() => setShowInfoModal(false)}
+        centered
+        container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Informacja</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div dangerouslySetInnerHTML={{ __html: infoModalText }} />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => setShowInfoModal(false)}>
+            OK
+          </Button>
+          <Button variant="outline-secondary" onClick={handleHideInfoModal}>
+            Nie pokazuj więcej
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Container
           fluid
           style={{
