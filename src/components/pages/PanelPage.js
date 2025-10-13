@@ -105,6 +105,65 @@ export default function PanelPage() {
   const [editNotes, setEditNotes] = useState("");
   const [configSettings, setConfigSettings] = useState(null);
   
+  // Dodaj stan do obsługi obecności harcerzy w modalu zbiórki
+  const [meetingPresence, setMeetingPresence] = useState([]);
+
+  // Funkcja do obsługi zaznaczania obecności
+  function handleMeetingPresenceChange(harcerzId) {
+    setMeetingPresence(prev => {
+      if (prev.includes(harcerzId)) {
+        return prev.filter(id => id !== harcerzId);
+      } else {
+        // Pozwól maksymalnie 7 harcerzy
+        if (prev.length >= 7) return prev;
+        return [...prev, harcerzId];
+      }
+    });
+  }
+
+  // Funkcja do obsługi wysłania formularza zbiórki
+  async function handleAddMeetingSubmit(e) {
+    e.preventDefault();
+    const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+    const meetingCat = scoringCategories.find(cat => cat.scoringKey === "obecnosc");
+    if (!selectedScoutTeam || !meetingCat) return;
+
+    try {
+      for (const harcerzId of meetingPresence) {
+        const harcerz = selectedScoutTeam.harcerze.find(h => h.id === harcerzId);
+        await addPunktacjaEntry({
+          selectedCategory: meetingCat,
+          selectedScoutTeam,
+          points: 1,
+          month: addMonth,
+          userEmail: user.email,
+          notes: addNotes,
+          selectedScoutPerson: harcerz,
+        });
+      }
+      setShowAddMeetingModal(false);
+      setMeetingPresence([]);
+      setAddMonth("");
+      setAddNotes("");
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+      toast.success("Dodano obecność na zbiórce!");
+    } catch (err) {
+      alert("Błąd dodawania obecności: " + err.message);
+      console.error("Błąd dodawania obecności:", err);
+    }
+  }
+
+  // Dodaj funkcję do resetowania formularza zbiórki
+  function resetMeetingForm() {
+    setMeetingPresence([]);
+    setAddMonth("");
+    setAddNotes("");
+  }
+
   // Dodaj stany dla osobnych modali:
   const [showAddTypeModal, setShowAddTypeModal] = useState(false);
   const [showAddTripModal, setShowAddTripModal] = useState(false);
@@ -1665,10 +1724,13 @@ async function handleNotificationToggle(checked) {
             </Modal.Body>
           </Modal>
           
-          {/* MODAL DODAWANIA ZBIÓRKI*/}
+          {/* MODAL DODAWANIA ZBIÓRKI */}
           <Modal
             show={showAddMeetingModal}
-            onHide={() => setShowAddMeetingModal(false)}
+            onHide={() => {
+              setShowAddMeetingModal(false);
+              resetMeetingForm(); // resetuj formularz po zamknięciu
+            }}
             centered
             container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
           >
@@ -1676,9 +1738,110 @@ async function handleNotificationToggle(checked) {
               <Modal.Title>Dodaj zbiórkę</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-              <div className="text-center text-muted py-5">
-                Formularz dodawania zbiórki w przygotowaniu.
-              </div>
+              <Form onSubmit={e => {
+                handleAddMeetingSubmit(e);
+                resetMeetingForm(); // resetuj formularz po dodaniu punktów
+              }}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Zastęp</Form.Label>
+                  <Form.Select value={addScoutId || ""} disabled>
+                    <option>Wybierz zastęp</option>
+                    {teamScouts.map((scout) => (
+                      <option key={scout.id} value={scout.id}>{scout.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Kategoria</Form.Label>
+                  <Form.Select value="obecnosc_na_zbiorce" disabled>
+                    <option value="obecnosc_na_zbiorce">Obecność na zbiórce</option>
+                  </Form.Select>
+                  <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                    <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.scoringKey === "obecnosc")?.scoringDesc }} />
+                  </div>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                <Form.Label>Zaznacz obecnych harcerzy (max 7)</Form.Label>
+                <div className="d-flex flex-column gap-2">
+                  {zastepy.find(z => z.id === addScoutId)?.harcerze?.map(h => (
+                    <div
+                      key={h.id}
+                      className="d-flex align-items-center"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleMeetingPresenceChange(h.id)}
+                    >
+                      <Form.Check
+                        type="checkbox"
+                        label=""
+                        checked={meetingPresence.includes(h.id)}
+                        onChange={() => handleMeetingPresenceChange(h.id)}
+                        disabled={
+                          !meetingPresence.includes(h.id) && meetingPresence.length >= 7
+                        }
+                        style={{ marginRight: 8, pointerEvents: "none" }} // blokuj kliknięcie bezpośrednio na checkbox
+                      />
+                      <span
+                        style={{
+                          userSelect: "none",
+                          color: meetingPresence.includes(h.id) ? "#0d7337" : undefined,
+                          fontWeight: meetingPresence.includes(h.id) ? 600 : 400,
+                          fontSize: "1.08em"
+                        }}
+                      >
+                        {h.name} {h.surname}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {meetingPresence.length >= 7 && (
+                  <div className="text-danger mt-2" style={{ fontSize: "0.95rem" }}>
+                    Możesz zaznaczyć maksymalnie 7 harcerzy.
+                  </div>
+                )}
+              </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                  <Form.Select
+                    value={addMonth}
+                    onChange={e => setAddMonth(e.target.value)}
+                    required
+                  >
+                    <option value="">Wybierz miesiąc</option>
+                    <option value="202509">wrzesień 2025</option>
+                    <option value="202510">październik 2025</option>
+                    <option value="202511">listopad 2025</option>
+                    <option value="202512">grudzień 2025</option>
+                    <option value="202601">styczeń 2026</option>
+                    <option value="202602">luty 2026</option>
+                    <option value="202603">marzec 2026</option>
+                    <option value="202604">kwiecień 2026</option>
+                    <option value="202605">maj 2026</option>
+                    <option value="202606">czerwiec 2026</option>
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={addNotes}
+                    onChange={e => setAddNotes(e.target.value)}
+                    placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                  />
+                </Form.Group>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-100"
+                  disabled={
+                    !addScoutId ||
+                    !addMonth ||
+                    meetingPresence.length === 0
+                  }
+                >
+                  Dodaj obecność
+                </Button>
+              </Form>
             </Modal.Body>
           </Modal>
 
