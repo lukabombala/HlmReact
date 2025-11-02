@@ -2373,14 +2373,17 @@ async function handleNotificationToggle(checked) {
                               >
                                 Odśwież punktację
                               </Button>
-                           <div className="d-flex gap-2">
-                          <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
-                            Usuń zaznaczone
-                          </Button>
-                          <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
-                            Edytuj zaznaczone
-                          </Button>
-                        </div>
+                          
+                        {enableBulkActionsInHistory && (
+                          <div className="d-flex gap-2">
+                            <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
+                              Usuń zaznaczone
+                            </Button>
+                            <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
+                              Edytuj zaznaczone
+                            </Button>
+                          </div>
+                        )}
                             </Col>
                           )}
                         </Row>
