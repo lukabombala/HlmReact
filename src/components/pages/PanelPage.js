@@ -2071,7 +2071,7 @@ async function handleNotificationToggle(checked) {
                     </div>
                   </Form.Group>
                   <Form.Group className="mb-3">
-                    <Form.Label>Rodzaj obrzędowości — wybierz ile wpisów dodać <br/>(max 1 pkt/kategoria/zbiórka)</Form.Label>
+                    <Form.Label>Rodzaj obrzędowości — wybierz ile punktów dodać <br/>(max 1 pkt/kategoria/zbiórka)</Form.Label>
                     {[
                       { key: "proporzec", label: "Proporzec" },
                       { key: "mundur", label: "Oznaczenie na mundurze" },
