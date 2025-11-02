@@ -108,6 +108,105 @@ export default function PanelPage() {
   const [infoModalText, setInfoModalText] = useState("");
   const [infoModalVersion, setInfoModalVersion] = useState("");
   
+    // Bulk selection / bulk actions for history
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState(new Set());
+  const [selectAllPage, setSelectAllPage] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditMonth, setBulkEditMonth] = useState("");
+  const [bulkEditNotes, setBulkEditNotes] = useState("");
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+   // Ustawienie: wyświetlaj przyciski akcji masowych w historii (domyślnie wyłączone)
+ const [enableBulkActionsInHistory, setEnableBulkActionsInHistory] = useState(() => {
+    const stored = localStorage.getItem("enableBulkActionsInHistory");
+    return stored === "true" ? true : false;
+  });
+  function handleEnableBulkActionsToggle(val) {
+    setEnableBulkActionsInHistory(val);
+    localStorage.setItem("enableBulkActionsInHistory", val ? "true" : "false");
+    if (!val) {
+      // wyczyść zaznaczenia gdy wyłączone
+      setSelectedHistoryIds(new Set());
+      setSelectAllPage(false);
+    }
+  }
+
+  function toggleSelectHistory(id) {
+    setSelectedHistoryIds(prev => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
+  }
+
+  function handleSelectAllVisible(visibleIds) {
+    setSelectedHistoryIds(prev => {
+      const s = new Set(prev);
+      const allSelected = visibleIds.every(id => s.has(id));
+      if (allSelected) {
+        // unselect visible
+        visibleIds.forEach(id => s.delete(id));
+        setSelectAllPage(false);
+      } else {
+        // select visible
+        visibleIds.forEach(id => s.add(id));
+        setSelectAllPage(true);
+      }
+      return s;
+    });
+  }
+
+  async function handleBulkDeleteConfirm() {
+    if (selectedHistoryIds.size === 0) return;
+    if (!window.confirm(`Usunąć ${selectedHistoryIds.size} zaznaczonych wpisów? Ta operacja jest nieodwracalna.`)) return;
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedHistoryIds);
+      await Promise.all(ids.map(id => deleteDoc(doc(db, "Punktacja", id))));
+      toast.success(`Usunięto ${ids.length} wpisów.`);
+      setSelectedHistoryIds(new Set());
+      // odśwież dane
+      setPunktacjeLoading(true);
+      const data = await punktacjaListAll();
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    } catch (err) {
+      console.error("Błąd kasowania wielu wpisów:", err);
+      alert("Błąd kasowania wpisów: " + err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
+  async function handleBulkEditSubmit(e) {
+    e.preventDefault();
+    if (selectedHistoryIds.size === 0) return;
+    setBulkActionLoading(true);
+    try {
+      const updates = {};
+      if (bulkEditMonth) updates.miesiac = bulkEditMonth;
+      if (bulkEditNotes) updates.scoreInfo = bulkEditNotes;
+
+      const ids = Array.from(selectedHistoryIds);
+      await Promise.all(ids.map(id => updateDoc(doc(db, "Punktacja", id), updates)));
+      toast.success(`Zaktualizowano ${ids.length} wpisów.`);
+      setSelectedHistoryIds(new Set());
+      setShowBulkEditModal(false);
+      setBulkEditMonth("");
+      setBulkEditNotes("");
+      // odśwież dane
+      setPunktacjeLoading(true);
+      const data = await punktacjaListAll();
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    } catch (err) {
+      console.error("Błąd masowej edycji:", err);
+      alert("Błąd masowej edycji: " + err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
   // Pobierz dane z config (id: zzzzzzzzzzzzzzzzzzzt)
   useEffect(() => {
     const db = getFirestore(app);
@@ -2308,6 +2407,30 @@ async function handleNotificationToggle(checked) {
                   <div className="text-muted py-5 text-center">Brak wpisów punktacji dla wybranych filtrów.</div>
                 ) : (
                   <>
+                        {/* Bulk actions toolbar */}
+                    {enableBulkActionsInHistory && (
+                      <div className="d-flex align-items-center justify-content-between mb-3">
+                        <div className="d-flex align-items-center gap-3">
+                          <Form.Check
+                            type="checkbox"
+                            id="select-all-visible"
+                            checked={paginatedHistoryRecords.length > 0 && paginatedHistoryRecords.every(r => selectedHistoryIds.has(r.id))}
+                            onChange={() => handleSelectAllVisible(paginatedHistoryRecords.map(r => r.id))}
+                            label={`Zaznacz wszystkie (${paginatedHistoryRecords.length})`}
+                          />
+                          <div className="text-muted small">Zaznacz wpisy do masowej akcji</div>
+                        </div>
+                        <div className="d-flex gap-2">
+                          <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
+                            Usuń zaznaczone
+                          </Button>
+                          <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
+                            Edytuj zaznaczone
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
                     <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"} >
                       {paginatedHistoryRecords.map((rec) => (
                         <div
@@ -2323,6 +2446,16 @@ async function handleNotificationToggle(checked) {
                             }}
                           >
                             <div className="d-flex align-items-start justify-content-between gap-4">
+                              {enableBulkActionsInHistory ? (
+                                <div className="me-2 d-flex align-items-start" style={{ marginTop: 6 }}>
+                                  <Form.Check
+                                    type="checkbox"
+                                    checked={selectedHistoryIds.has(rec.id)}
+                                    onChange={() => toggleSelectHistory(rec.id)}
+                                    style={{ marginRight: 8 }}
+                                  />
+                                </div>
+                              ) : null}                       
                               <div className="flex-grow-1">
                                 <div className="d-flex align-items-center gap-3 mb-2">
                                   <div>
@@ -2437,6 +2570,36 @@ async function handleNotificationToggle(checked) {
                         </div>
                       ))}
                     </div>
+                    {/* Bulk edit modal */}
+                      <Modal show={showBulkEditModal} onHide={() => setShowBulkEditModal(false)} centered container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                        <Modal.Header closeButton>
+                          <Modal.Title>Edytuj zaznaczone wpisy ({selectedHistoryIds.size})</Modal.Title>
+                        </Modal.Header>
+                        <Form onSubmit={handleBulkEditSubmit}>
+                          <Modal.Body>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Nowa klasyfikacja miesięczna (opcjonalnie)</Form.Label>
+                              <Form.Select value={bulkEditMonth} onChange={e => setBulkEditMonth(e.target.value)}>
+                                <option value="">Nie zmieniaj miesiąca</option>
+                                {historyMonthOptions.map(opt => (
+                                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                                ))}
+                              </Form.Select>
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Uwagi (nadpisz jeśli uzupełnione)</Form.Label>
+                              <Form.Control as="textarea" rows={3} value={bulkEditNotes} onChange={e => setBulkEditNotes(e.target.value)} placeholder="Wprowadź nowe uwagi (opcjonalnie)" />
+                            </Form.Group>
+                            <div className="text-muted small">Masowa edycja obsługuje zmianę miesiąca i uwag. Jeśli chcesz bardziej zaawansowanej edycji (kategoria/punkty), użyj indywidualnej edycji.</div>
+                          </Modal.Body>
+                          <Modal.Footer>
+                            <Button variant="secondary" onClick={() => setShowBulkEditModal(false)}>Anuluj</Button>
+                            <Button type="submit" variant="primary" disabled={bulkActionLoading || selectedHistoryIds.size === 0}>
+                              Zapisz zmiany
+                            </Button>
+                          </Modal.Footer>
+                        </Form>
+                      </Modal>
                     <Modal show={showNotesModal} 
                           onHide={() => setShowNotesModal(false)} 
                           centered
@@ -2682,6 +2845,14 @@ async function handleNotificationToggle(checked) {
                       onChange={e => handleAutoSuggestToggle(e.target.checked)}
                       style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 12 }}
                     />
+                    <Form.Check
+                      type="switch"
+                      id="enable-bulk-actions-switch"
+                      label="Wyświetlaj przyciski akcji masowych w historii wpisów"
+                      checked={enableBulkActionsInHistory}
+                      onChange={e => handleEnableBulkActionsToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 12 }}
+                  />
                   </Form>
                 </Card.Body>
               </Card>
