@@ -2,7 +2,7 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Shield, Award, Clock, Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Shield, Award, Clock, Settings, Trophy, Users, Minus, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -213,63 +213,76 @@ export default function PanelPage() {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const [ceremonyChecks, setCeremonyChecks] = useState({
-    proporzec: false,
-    mundur: false,
-    dodatkowa: false,
+  // store how many entries to add per ceremony type (0..4)
+  const [ceremonyCounts, setCeremonyCounts] = useState({
+    proporzec: 0,
+    mundur: 0,
+    dodatkowa: 0,
   });
   const ceremonyMonth = addMonth;
   const ceremonyNotes = addNotes;
 
-  // Funkcja obsługi zmiany checkboxów
-  function handleCeremonyCheckChange(e) {
-    setCeremonyChecks({
-      ...ceremonyChecks,
-      [e.target.name]: e.target.checked,
-    });
+  function handleCeremonyCountChange(type, value) {
+    const v = Math.max(0, Math.min(6, Number(value) || 0));
+    setCeremonyCounts(prev => ({ ...prev, [type]: v }));
   }
 
-  // Funkcja obsługi dodania obrzędowości
+  
+  // Funkcja obsługi dodania obrzędowości (bez przypisywania do pojedynczych harcerzy)
   async function handleAddCeremonySubmit(e) {
     e.preventDefault();
     const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
-    const obrzedCat = scoringCategories.find(cat => cat.scoringKey === "obrzedowosc"); // lub inny klucz dla obrzędowości
+    const obrzedCat = scoringCategories.find(cat => cat.scoringKey === "ceremony" || cat.scoringKey === "obrzedowosc");
     if (!selectedScoutTeam || !obrzedCat) return;
 
-    const checks = [
+    const types = [
       { key: "proporzec", label: "Proporzec" },
       { key: "mundur", label: "Oznaczenie na mundurze" },
       { key: "dodatkowa", label: "Dodatkowa obrzędowość" },
     ];
 
-  try {
-    for (const check of checks) {
-      if (ceremonyChecks[check.key]) {
-        await addPunktacjaEntry({
-          selectedCategory: obrzedCat,
-          selectedScoutTeam,
-          points: 1,
-          month: ceremonyMonth,
-          userEmail: user.email,
-          notes: ceremonyNotes,
-        });
+    try {
+      for (const t of types) {
+        const count = ceremonyCounts[t.key] || 0;
+        if (count <= 0) continue;
+        // dodaj `count` wpisów przypisanych do zastępu (bez selectedScoutPerson)
+        for (let i = 0; i < count; i++) {
+          const notesWithType = `${ceremonyNotes || ""}${ceremonyNotes ? " — " : ""}${t.label}`;
+          await addPunktacjaEntry({
+            selectedCategory: obrzedCat,
+            selectedScoutTeam,
+            points: 1,
+            month: ceremonyMonth,
+            userEmail: user.email,
+            notes: notesWithType,
+            // selectedScoutPerson omitted on purpose
+          });
+        }
       }
+
+      setShowAddCeremonyModal(false);
+      setCeremonyCounts({ proporzec: 0, mundur: 0, dodatkowa: 0 });
+      setAddMonth("");
+      setAddNotes("");
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+      toast.success("Dodano obrzędowość!");
+    } catch (err) {
+      alert("Błąd dodawania obrzędowości: " + err.message);
+      console.error("Błąd dodawania obrzędowości:", err);
     }
+  }
+
+    // Funkcja zamykająca modal obrzędowości i resetująca formularz
+  function handleCloseAddCeremonyModal() {
     setShowAddCeremonyModal(false);
-    setCeremonyChecks({ proporzec: false, mundur: false, dodatkowa: false });
+    setCeremonyCounts({ proporzec: 0, mundur: 0, dodatkowa: 0 });
     setAddMonth("");
     setAddNotes("");
-    setPunktacjeLoading(true);
-    punktacjaListAll().then((data) => {
-      setPunktacje(data);
-      setPunktacjeLoading(false);
-    });
-    toast.success("Dodano obrzędowość!");
-  } catch (err) {
-    alert("Błąd dodawania obrzędowości: " + err.message);
-    console.error("Błąd dodawania obrzędowości:", err);
   }
-}
 
   // Zmień funkcję otwierania modala dodawania punktów:
   function handleOpenAddModal(scoutId) {
@@ -277,7 +290,8 @@ export default function PanelPage() {
     setAddCategoryId("");
     setAddScoutPersonId("");
     setAddPoints("");
-    setAddMonth("");
+   // ustaw domyślny miesiąc jeśli użytkownik ma włączone auto-sugestie
+   setAddMonth(autoSuggestCurrentMonth ? getCurrentMonthKey() : "");
     setAddNotes("");
     if (advancedAddPoints) {
       setShowAddTypeModal(true); // okno wyboru typu
@@ -285,10 +299,13 @@ export default function PanelPage() {
       setShowAddSingleModal(true); // od razu zwykły modal
     }
   }
-
+  
   // Funkcja do obsługi kafelków
   function handleAddType(type) {
     setShowAddTypeModal(false);
+    // domyślny miesiąc przy otwieraniu konkretnego modalu
+    const defaultMonth = autoSuggestCurrentMonth ? getCurrentMonthKey() : "";
+    setAddMonth(defaultMonth);
     if (type === "single") {
       setShowAddSingleModal(true);
     } else if (type === "trip") {
@@ -299,7 +316,6 @@ export default function PanelPage() {
       setShowAddCeremonyModal(true);
     }
   }
-
   // Funckja do usuwania wpisu
   async function handleDeleteEntryConfirm() {
     if (!deleteEntryData?.id) return;
@@ -727,10 +743,40 @@ async function handleNotificationToggle(checked) {
     return stored === null ? false : stored === "true";
   });
 
+  
   // Obsługa zmiany toggle i zapis do localStorage
   function handleAdvancedAddPointsToggle(val) {
     setAdvancedAddPoints(val);
     localStorage.setItem("advancedAddPoints", val ? "true" : "false");
+  }
+
+  // Nowe ustawienie: automatycznie proponuj obecny miesiąc przy dodawaniu punktacji
+  const [autoSuggestCurrentMonth, setAutoSuggestCurrentMonth] = useState(() => {
+    const stored = localStorage.getItem("autoSuggestCurrentMonth");
+    // domyślnie false (wyłączone) jeśli brak ustawienia
+    return stored === null ? false : stored === "true";
+  });
+
+  function handleAutoSuggestToggle(val) {
+    setAutoSuggestCurrentMonth(val);
+    localStorage.setItem("autoSuggestCurrentMonth", val ? "true" : "false");
+  }
+
+  function getCurrentMonthKey() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${year}${month}`;
+  }
+
+  // Reset formularzy dodawania (wywoływane przy zamknięciu modalów add)
+  function resetAddForm() {
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+    setAddMonth("");
+    setAddNotes("");
+    // nie ruszamy punktacji/edytowanych danych (te są inne stany)
   }
 
   // Zastępy z sumą punktów i wpisów
@@ -1622,7 +1668,7 @@ async function handleNotificationToggle(checked) {
                   
                   {/* Modal dodawania punktów */}
                   <Modal show={showAddSingleModal} 
-                      onHide={() => setShowAddSingleModal(false)} 
+                      onHide={() => { setShowAddSingleModal(false); resetAddForm(); }} 
                       centered
                       container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                   <Modal.Header closeButton>
@@ -1756,7 +1802,7 @@ async function handleNotificationToggle(checked) {
                     {/*MODAL DODAWANIA WYJAZDU */}
           <Modal
             show={showAddTripModal}
-            onHide={() => setShowAddTripModal(false)}
+            onHide={() => { setShowAddTripModal(false); resetAddForm(); }}
             centered
             container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
           >
@@ -1894,7 +1940,7 @@ async function handleNotificationToggle(checked) {
           {/* MODAL DODAWANIA OBRZĘDOWOŚCI */}
             <Modal
               show={showAddCeremonyModal}
-              onHide={() => setShowAddCeremonyModal(false)}
+              onHide={handleCloseAddCeremonyModal}
               centered
               container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
             >
@@ -1923,28 +1969,51 @@ async function handleNotificationToggle(checked) {
                     </div>
                   </Form.Group>
                   <Form.Group className="mb-3">
-                    <Form.Label>Rodzaj obrzędowości</Form.Label>
-                    <Form.Check
-                      type="checkbox"
-                      label="Proporzec"
-                      name="proporzec"
-                      checked={ceremonyChecks.proporzec}
-                      onChange={handleCeremonyCheckChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label="Oznaczenie na mundurze"
-                      name="mundur"
-                      checked={ceremonyChecks.mundur}
-                      onChange={handleCeremonyCheckChange}
-                    />
-                    <Form.Check
-                      type="checkbox"
-                      label="Dodatkowa obrzędowość"
-                      name="dodatkowa"
-                      checked={ceremonyChecks.dodatkowa}
-                      onChange={handleCeremonyCheckChange}
-                    />
+                    <Form.Label>Rodzaj obrzędowości — wybierz ile wpisów dodać <br/>(max 1 pkt/kategoria/zbiórka)</Form.Label>
+                    {[
+                      { key: "proporzec", label: "Proporzec" },
+                      { key: "mundur", label: "Oznaczenie na mundurze" },
+                      { key: "dodatkowa", label: "Dodatkowa obrzędowość" }
+                    ].map(t => (
+                      <div key={t.key} className="d-flex align-items-center justify-content-between mb-2 p-2 border rounded" style={{ background: darkMode ? "#1b1b1d" : "#fff" }}>
+                        <div style={{ 
+                          fontWeight: (ceremonyCounts[t.key] || 0) > 0 ? 600 : 400, 
+                          color: (ceremonyCounts[t.key] || 0) > 0 ? "#0d7337" : undefined 
+                          }}>
+                          {t.label}
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => handleCeremonyCountChange(t.key, (ceremonyCounts[t.key] || 0) - 1)}
+                            aria-label={`Zmniejsz ${t.label}`}
+                            className="d-flex align-items-center justify-content-center"
+                            style={{ minWidth: 36, minHeight: 32, padding: "0.25rem" }}
+                          >
+                            <Minus size={16} />
+                          </Button>
+                          <div style={{ 
+                            minWidth: 28, 
+                            textAlign: "center", 
+                            fontWeight: 700, 
+                            color: (ceremonyCounts[t.key] || 0) > 0 ? "#0d7337" : undefined 
+                            }}>
+                            {ceremonyCounts[t.key]}
+                          </div>
+                          <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => handleCeremonyCountChange(t.key, (ceremonyCounts[t.key] || 0) + 1)}
+                          aria-label={`Zwiększ ${t.label}`}
+                          className="d-flex align-items-center justify-content-center"
+                          style={{ minWidth: 36, minHeight: 32, padding: "0.25rem" }}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                        </div>
+                      </div>
+                    ))}
                   </Form.Group>
                   <Form.Group className="mb-3">
                     <Form.Label>Klasyfikacja miesięczna</Form.Label>
@@ -1977,7 +2046,7 @@ async function handleNotificationToggle(checked) {
                     />
                   </Form.Group>
                   <Alert variant="info" className="mb-3" style={{ fontSize: "0.98em" }}>
-                    <strong>Uwaga:</strong> Dla każdego zaznaczonego rodzaju obrzędowości zostanie dodany osobny wpis.
+                    <strong>Uwaga:</strong> Dla każdego zaznaczonego rodzaju obrzędowości dodana zostanie wybrana liczba osobnych wpisów.
                   </Alert>
                   <Button
                     type="submit"
@@ -1986,7 +2055,11 @@ async function handleNotificationToggle(checked) {
                     disabled={
                       !addScoutId ||
                       !addMonth ||
-                      (!ceremonyChecks.proporzec && !ceremonyChecks.mundur && !ceremonyChecks.dodatkowa)
+                      (
+                        (ceremonyCounts.proporzec || 0) === 0 &&
+                        (ceremonyCounts.mundur || 0) === 0 &&
+                        (ceremonyCounts.dodatkowa || 0) === 0
+                      )
                     }
                   >
                     Dodaj punkty
@@ -2601,6 +2674,14 @@ async function handleNotificationToggle(checked) {
                     <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
                       Jeśli wyłączysz tę opcję, po kliknięciu „Dodaj punkty” w sekcji Moje zastępy od razu otworzy się zwykłe okno dodawania punktów.
                     </div>
+                    <Form.Check
+                      type="switch"
+                      id="auto-suggest-month-switch"
+                      label="Automatycznie proponuj obecny miesiąc przy dodawaniu punktacji"
+                      checked={autoSuggestCurrentMonth}
+                      onChange={e => handleAutoSuggestToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 12 }}
+                    />
                   </Form>
                 </Card.Body>
               </Card>
@@ -2609,7 +2690,7 @@ async function handleNotificationToggle(checked) {
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <Info size={20} className="me-2" />
-                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie testowania)</span>
+                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie rozwoju lub testowania)</span>
               </Card.Header>
               <Card.Body>
                 <Form>
