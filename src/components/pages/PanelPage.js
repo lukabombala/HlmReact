@@ -107,6 +107,7 @@ export default function PanelPage() {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [infoModalText, setInfoModalText] = useState("");
   const [infoModalVersion, setInfoModalVersion] = useState("");
+  const [infoModalToggle, setInfoModalToggle] = useState(false);
   
     // Bulk selection / bulk actions for history
   const [selectedHistoryIds, setSelectedHistoryIds] = useState(new Set());
@@ -212,9 +213,10 @@ export default function PanelPage() {
     const db = getFirestore(app);
     getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzt")).then(snap => {
       if (snap.exists()) {
-        const { settingsText, settingsValue } = snap.data();
+        const { settingsText, settingsValue, settingsToggle} = snap.data();
         setInfoModalText(settingsText || "");
         setInfoModalVersion(settingsValue || "");
+        setInfoModalToggle(settingsToggle);
         // Sprawdź w localStorage czy modal był ukryty dla tej wersji
         const hiddenVersion = localStorage.getItem("panelInfoModalHiddenVersion");
         if (settingsValue && hiddenVersion !== settingsValue) {
@@ -480,7 +482,6 @@ export default function PanelPage() {
   useEffect(() => {
     const db = getFirestore(app);
     getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzv")).then(snap => {
-      console.log("Config snap:", snap.exists(), snap.data());
       if (snap.exists()) {
         setConfigSettings(snap.data());
       }
@@ -1246,6 +1247,7 @@ async function handleNotificationToggle(checked) {
         </nav>
 
       {/* Main content */}
+      {infoModalToggle && showInfoModal && (
       <Modal
         show={showInfoModal}
         onHide={() => setShowInfoModal(false)}
@@ -1267,6 +1269,7 @@ async function handleNotificationToggle(checked) {
           </Button>
         </Modal.Footer>
       </Modal>
+      )}
       <Container
           fluid
           style={{
@@ -2351,7 +2354,9 @@ async function handleNotificationToggle(checked) {
                           </Col>
                           {!isMobile && (
                             <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
-                              <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                              <Button variant="outline-secondary" 
+                              size="sm" 
+                              onClick={handleResetFilters}>
                                 Resetuj filtry
                               </Button>
                               <Button
@@ -2368,9 +2373,14 @@ async function handleNotificationToggle(checked) {
                               >
                                 Odśwież punktację
                               </Button>
-                              <div className="text-muted ms-2">
-                                Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
-                              </div>
+                           <div className="d-flex gap-2">
+                          <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
+                            Usuń zaznaczone
+                          </Button>
+                          <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
+                            Edytuj zaznaczone
+                          </Button>
+                        </div>
                             </Col>
                           )}
                         </Row>
@@ -2394,9 +2404,6 @@ async function handleNotificationToggle(checked) {
                         >
                           Odśwież punktację
                         </Button>
-                        <div className="text-muted mt-2">
-                          Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
-                        </div>
                       </div>
                     )}
                   </div>
@@ -2418,8 +2425,8 @@ async function handleNotificationToggle(checked) {
                             onChange={() => handleSelectAllVisible(paginatedHistoryRecords.map(r => r.id))}
                             label={`Zaznacz wszystkie (${paginatedHistoryRecords.length})`}
                           />
-                          <div className="text-muted small">Zaznacz wpisy do masowej akcji</div>
                         </div>
+                        {isMobile && (
                         <div className="d-flex gap-2">
                           <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
                             Usuń zaznaczone
@@ -2428,6 +2435,7 @@ async function handleNotificationToggle(checked) {
                             Edytuj zaznaczone
                           </Button>
                         </div>
+                        )}
                       </div>
                     )}
 
@@ -2445,17 +2453,18 @@ async function handleNotificationToggle(checked) {
                               minHeight: isDesktopWide ? 0 : undefined
                             }}
                           >
-                            <div className="d-flex align-items-start justify-content-between gap-4">
+                            <div className={`d-flex history-record-row ${enableBulkActionsInHistory ? "bulk-enabled align-items-center" : "align-items-start"} justify-content-between ${enableBulkActionsInHistory ? "" : "gap-4"}`}>
                               {enableBulkActionsInHistory ? (
-                                <div className="me-2 d-flex align-items-start" style={{ marginTop: 6 }}>
+                              <div className="history-select-container">
                                   <Form.Check
                                     type="checkbox"
                                     checked={selectedHistoryIds.has(rec.id)}
                                     onChange={() => toggleSelectHistory(rec.id)}
-                                    style={{ marginRight: 8 }}
+                                    className="history-select-checkbox"
+                                    style={{ marginRight: 6, padding: 0 }}
                                   />
                                 </div>
-                              ) : null}                       
+                              ) : null}                    
                               <div className="flex-grow-1">
                                 <div className="d-flex align-items-center gap-3 mb-2">
                                   <div>
@@ -2819,6 +2828,7 @@ async function handleNotificationToggle(checked) {
           <Card.Body>
 
             {/* Nowa karta: Główne ustawienia */}
+                          {userWeb?.admin === true && (
               <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
                 <Card.Header className="d-flex align-items-center gap-2">
                   <Settings size={20} className="me-2" />
@@ -2856,7 +2866,7 @@ async function handleNotificationToggle(checked) {
                   </Form>
                 </Card.Body>
               </Card>
-
+            )}
             {/* Karta: Funkcje eksperymentalne */}
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">

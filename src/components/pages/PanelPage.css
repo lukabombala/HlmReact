@@ -112,3 +112,58 @@
     margin-right: 0 !important;
   }
 }
+
+/* Powiększony i wyśrodkowany checkbox dla akcji masowych w historii
+   - ustaw align-self: center żeby przesłonić parent .align-items-start */
+.history-select-container {
+  display: flex;
+  align-items: center; /* wycentrowanie checkboxa wewnątrz wrappera */
+  align-self: center;  /* wymusza pionowe wycentrowanie względem rodzica (override parent align-items-start) */
+  height: 100%;
+  padding-right: 8px;
+  margin: 0;
+}
+
+/* skaluj checkbox i usuń domyślne przesunięcie */
+.history-select-checkbox .form-check-input {
+  transform: scale(1.35);
+  margin: 0;
+  width: 1.4em;
+  height: 1.4em;
+  vertical-align: middle;
+}
+
+/* wrapper checkboxa - upewnij się że sam wrapper też centruje się pionowo */
+.history-select-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+}
+
+/* focus outline */
+.history-select-checkbox .form-check-input:focus {
+  box-shadow: 0 0 0 0.15rem rgba(13,115,55,0.15);
+}
+
+@media (max-width: 767px) {
+  /* Zmniejsz odstęp między checkboxem a zawartością karty w widoku mobilnym */
+  .history-record-row {
+    gap: 0.5rem !important; /* zamiast gap-4 */
+  }
+
+  .history-select-container {
+    padding-right: 4px !important;
+    margin-right: 4px !important;
+  }
+
+  /* mniejszy skalowany checkbox na mobilkach (żeby nie dominował layoutu) */
+  .history-select-checkbox .form-check-input {
+    transform: scale(1.25);
+  }
+
+  /* jeśli Form.Check wrapper ma dodatkowe marginy, nadpisz */
+  .history-select-checkbox {
+    margin-right: 4px !important;
+  }
+}
