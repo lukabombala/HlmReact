@@ -16,7 +16,7 @@ export default function NewsSection() {
   const [filterAuthor, setFilterAuthor] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [newsPerPage, setNewsPerPage] = useState(4);
+  const [newsPerPage, setNewsPerPage] = useState(8);
   const [sortOrder, setSortOrder] = useState("desc"); // "desc" = najnowsze, "asc" = najstarsze
 
   // Responsive helper
@@ -175,7 +175,7 @@ export default function NewsSection() {
                     value={newsPerPage}
                     onChange={e => setNewsPerPage(Number(e.target.value))}
                   >
-                    {[2, 4, 8, 12, 20].map(opt => (
+                    {[4, 8, 12, 20, 40].map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </Form.Select>
