@@ -2419,7 +2419,8 @@ async function handleNotificationToggle(checked) {
                   <>
                         {/* Bulk actions toolbar */}
                     {enableBulkActionsInHistory && (
-                      <div className="d-flex align-items-center justify-content-between mb-3">
+                      <div className="d-flex align-items-center justify-content-between mb-3"
+                      style={{ marginTop: 6, padding: 0 }}>
                         <div className="d-flex align-items-center gap-3">
                           <Form.Check
                             type="checkbox"
