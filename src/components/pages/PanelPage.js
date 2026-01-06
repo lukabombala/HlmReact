@@ -3,6 +3,8 @@ import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
 import { Shield, Award, Clock, Settings, Trophy, Users, Minus, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import BracketAdminPanel from "../admin/BracketAdminPanel";
+import AdminMatchManager from "../admin/AdminMatchManager";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
@@ -3013,19 +3015,18 @@ async function handleNotificationToggle(checked) {
         )}
 
         {/* .Tab administracyjny */}
-        {tab === "admin" && userWeb?.admin === true && (
-          <Card style={darkMode ? darkCardStyle : {}}>
-            <Card.Header className="d-flex align-items-center gap-2">
-              <Settings size={20} className="me-2" />
-              <span className="fw-semibold">Administracja</span>
-            </Card.Header>
-            <Card.Body>
-              <div className="text-center text-muted py-5">
-                Panel administracyjny w przygotowaniu.
-              </div>
-            </Card.Body>
-          </Card>
-        )}
+          {tab === "admin" && userWeb?.admin === true && (
+            <Card style={darkMode ? darkCardStyle : {}}>
+              <Card.Header className="d-flex align-items-center gap-2">
+                <Settings size={20} className="me-2" />
+                <span className="fw-semibold">Administracja</span>
+              </Card.Header>
+              <Card.Body>
+                <BracketAdminPanel />
+                <AdminMatchManager />
+              </Card.Body>
+            </Card>
+          )}
         </div>
       </Container>
     </div>

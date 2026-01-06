@@ -14,6 +14,7 @@ import TeamsPage from  "./components/pages/TeamsPage";
 import ZastepDetailPage from "./components/pages/ZastepDetailPage";
 import PanelPage from "./components/pages/PanelPage";
 import ArchivePage from "./components/pages/ArchivePage";
+import FazaPucharowaPage from "./components/pages/FazaPucharowaPage";
 
 
 
@@ -65,6 +66,7 @@ function AppRoutes() {
             <Route path="zastepy" element={<TeamsPage />} />
             <Route path="zastepy/:id" element={<ZastepDetailPage />} />
             <Route path="archiwum" element={<ArchivePage />} />
+            <Route path="fazapucharowa" element={<FazaPucharowaPage />} />
             <Route
               path="panel"
               element={

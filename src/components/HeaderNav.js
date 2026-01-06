@@ -96,7 +96,7 @@ function HeaderNav() {
     { name: "Aktualności", icon: Calendar, to: "/" },
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
-    ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
+    { name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" },
     { name: "Archiwum", icon: Box, to: "/archiwum" },
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
   ];
