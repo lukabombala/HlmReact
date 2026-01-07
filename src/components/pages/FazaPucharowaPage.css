@@ -14,6 +14,10 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   box-shadow: none;
   display: flex;
   flex-direction: column;
+  /* Increase top margin for navbar, keep left and bottom margins */
+  padding-top: 96px;
+  padding-left: 48px;
+  padding-bottom: 8px;
 }
 
 .faza-pucharowa-container h1 {
@@ -39,11 +43,14 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   border-radius: 0;
   box-shadow: none;
   padding: 0;
+  /* Increase left margin for bracket, reduce bottom margin */
+  padding-left: 48px;
+  padding-bottom: 8px;
 }
 
 .bracket-col-svg {
   position: absolute;
-  top: 0;
+  top: 160px; /* Shift all columns down by 160px to avoid navbar overlap */
   /* left set inline */
   width: 340px;
   min-width: 340px;
@@ -184,20 +191,37 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 
 .match-card {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   background: #fff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  min-width: 220px;
-  min-height: 56px;
-  padding: 0.7rem 1.2rem;
-  font-size: 1.05rem;
+  min-width: 160px;
+  width: 160px;
+  min-height: 40px;
+  padding: 0.25rem 0.4rem 0.18rem 0.4rem;
+  font-size: 0.82rem;
   position: relative;
   z-index: 2;
   border: 2px solid #e2e8f0;
-  gap: 1.2rem;
+  gap: 0.1rem;
+}
+.match-top-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 0.5rem;
+}
+
+.match-bottom-row {
+  width: 100%;
+  text-align: center;
+  margin-top: 2px;
+  font-size: 0.92em;
+  font-weight: 700;
 }
 
 .match-card.highlight {
@@ -209,7 +233,11 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  min-width: 80px;
+  min-width: 60px;
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .teamA {
   align-items: flex-end;
@@ -221,18 +249,24 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 }
 .nazwa {
   font-weight: 700;
-  font-size: 1.08rem;
+  font-size: 0.92rem;
   color: #2b6cb0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .druzyna {
-  font-size: 0.93rem;
+  font-size: 0.78rem;
   color: #4a5568;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .score {
-  font-size: 1.18rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: #2d3748;
-  min-width: 38px;
+  min-width: 28px;
   text-align: center;
 }
 .colon {
