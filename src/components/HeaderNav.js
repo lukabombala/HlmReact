@@ -96,9 +96,9 @@ function HeaderNav() {
     { name: "Aktualności", icon: Calendar, to: "/" },
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
-    { name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" },
     { name: "Archiwum", icon: Box, to: "/archiwum" },
-    { name: "Regulamin", icon: Newspaper, to: "/regulamin" }
+    { name: "Regulamin", icon: Newspaper, to: "/regulamin" },
+    ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
   ];
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);
@@ -132,18 +132,18 @@ function HeaderNav() {
           className="d-flex align-items-center gap-2"
           style={{
             cursor: "pointer",
-            fontSize: isMobile ? "1rem" : "2rem",
+            fontSize: isMobile ? "0.85rem" : "1.3rem",
             whiteSpace: isMobile ? "nowrap" : undefined,
           }}
         >
-          <Trophy size={isMobile ? 22 : 32} className="me-2" />
-          <span className="fw-bold">
+          <Trophy size={isMobile ? 20 : 28} className="me-2" />
+          <span className="fw-bold" style={{ fontSize: isMobile ? "0.85rem" : "1.3rem" }}>
             Harcerska Liga Mistrzów
           </span>
         </Navbar.Brand>
         <Navbar.Toggle aria-controls="main-navbar" />
         <Navbar.Collapse id="main-navbar">
-          <Nav className="ms-auto align-items-center gap-2">
+          <Nav className="ms-auto align-items-center gap-1">
           {isMobile ? (
             <div
               className="w-100 d-flex flex-column align-items-center justify-content-center"
@@ -156,6 +156,7 @@ function HeaderNav() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
+                  gap: 2,
                 }}
               >
                 {navItems.map((item) => {
@@ -211,6 +212,7 @@ function HeaderNav() {
           ) : (
             navItems.map((item) => {
               const isActive = location.pathname === item.to;
+              const isFazaPucharowa = item.name === "Faza pucharowa";
               return (
                 <Nav.Link
                   as={Link}
@@ -222,7 +224,8 @@ function HeaderNav() {
                     background: isActive ? "rgba(255,255,255,0.10)" : "transparent",
                     borderRadius: isActive ? "0.5rem" : undefined,
                     fontWeight: isActive ? 600 : 400,
-                    transition: "background 0.2s"
+                    transition: "background 0.2s",
+                    minWidth: isFazaPucharowa ? 165 : undefined
                   }}
                   onClick={() => setExpanded(false)}
                   aria-current={isActive ? "page" : undefined}

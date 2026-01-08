@@ -9,7 +9,7 @@ import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { useAuth } from "../../AuthContext";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc , getDoc, setDoc} from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import "./PanelPage.css";
 
@@ -69,6 +69,56 @@ const darkTextStyle = {
 };
 
 export default function PanelPage() {
+    // --- DRABINKA TOGGLE ---
+    const [cupToggleLoading, setCupToggleLoading] = useState(false);
+    const [cupToggleValue, setCupToggleValue] = useState(undefined);
+    const [cupToggleError, setCupToggleError] = useState("");
+
+    // Load current value from Firestore
+    useEffect(() => {
+      const db = getFirestore();
+      getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy")).then(snap => {
+        if (snap.exists()) {
+          setCupToggleValue(!!snap.data().settingsToggle);
+        }
+      });
+    }, []);
+
+    // Handler to update Firestore
+    async function handleCupToggleChange(val) {
+      setCupToggleLoading(true);
+      setCupToggleError("");
+      try {
+        const db = getFirestore();
+        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsToggle: val });
+        setCupToggleValue(val);
+      } catch (e) {
+        setCupToggleError("Błąd zapisu ustawienia: " + (e.message || e));
+      } finally {
+        setCupToggleLoading(false);
+      }
+    }
+    // --- ADMIN: DRABINKA TOGGLE UI ---
+    // Render toggle in Administracja section above "Dodaj nową drabinkę" using Form.Check switch style
+    function renderCupToggle() {
+      if (!userWeb?.admin) return null;
+      return (
+        <div style={{ marginBottom: 20 }}>
+          <Form>
+            <Form.Check
+              type="switch"
+              id="cup-toggle-switch"
+              label="Wyświetlaj fazę pucharową (drabinkę)"
+              checked={!!cupToggleValue}
+              disabled={cupToggleLoading}
+              onChange={e => handleCupToggleChange(e.target.checked)}
+              style={{ fontWeight: 500, fontSize: "1.1rem" }}
+            />
+            {cupToggleError && <div className="text-danger mt-1">{cupToggleError}</div>}
+          </Form>
+        </div>
+      );
+    }
   const [tab, setTab] = useState("team");
   const [addScoutId, setAddScoutId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -3019,9 +3069,10 @@ async function handleNotificationToggle(checked) {
             <Card style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <Settings size={20} className="me-2" />
-                <span className="fw-semibold">Administracja</span>
+                <span className="fw-semibold">Faza pucharowa</span>
               </Card.Header>
               <Card.Body>
+                {renderCupToggle()}
                 <BracketAdminPanel />
                 <AdminMatchManager />
               </Card.Body>
