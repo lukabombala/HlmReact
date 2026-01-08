@@ -272,12 +272,20 @@ export default function FazaPucharowaPage() {
     );
   }
 
-  // Responsive container size
+  // Oblicz rzeczywistą wysokość drabinki (największe y + wysokość kafelka + margines)
+  let maxY = 0;
+  [...leftPositions, ...rightPositions].forEach(col => {
+    if (col && col.length) {
+      const last = col[col.length - 1];
+      if (last && last.y > maxY) maxY = last.y;
+    }
+  });
+  if (finalPos && finalPos.y > maxY) maxY = finalPos.y;
   const containerWidth = Math.max(window.innerWidth, totalCols * (CARD_WIDTH + COL_GAP));
-  const containerHeight = Math.max(window.innerHeight - 40, 600);
+  const containerHeight = maxY + CARD_HEIGHT + CARD_GAP * 2;
 
   return (
-    <div className="faza-pucharowa-container" style={{ width: '100vw', height: '100vh', overflow: 'auto', margin: 0, paddingTop: '7rem', background: '#f8f9fa' }}>
+    <div className="faza-pucharowa-container" style={{ width: '100vw', overflow: 'auto', margin: 0, paddingTop: '7rem', background: '#f8f9fa' }}>
       <h1 style={{ textAlign: 'center', margin: 0, padding: '16px 0 30px 0' }}>Faza pucharowa</h1>
       {loading ? (
         <div style={{ padding: 40, textAlign: "center" }}>Ładowanie drabinki...</div>
@@ -286,7 +294,7 @@ export default function FazaPucharowaPage() {
       ) : (!leftRounds.length && !rightRounds.length) ? (
         <div style={{ padding: 40, textAlign: "center" }}>Brak danych o drabince.</div>
       ) : (
-        <div className="bracket-svg-container" style={{ position: 'relative', minWidth: containerWidth, minHeight: containerHeight, width: containerWidth, height: containerHeight, margin: '0 auto', overflow: 'auto', paddingTop: 32 }}>
+        <div className="bracket-svg-container" style={{ position: 'relative', minWidth: containerWidth, width: containerWidth, height: containerHeight, margin: '0 auto', overflow: 'auto', paddingTop: 32 }}>
           <SymmetricBracketSVG />
           {/* Left side */}
           {leftRounds.map((matches, roundIdx) => (

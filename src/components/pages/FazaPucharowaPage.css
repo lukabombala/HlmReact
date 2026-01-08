@@ -4,7 +4,7 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 /* Make container fill viewport, remove extra margin/padding */
 .faza-pucharowa-container {
   width: 100vw;
-  height: 100vh;
+  /* height: 100vh;  <-- REMOVE to allow container to shrink to content */
   min-width: 0;
   min-height: 0;
   margin: 0;
@@ -14,10 +14,10 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  /* Increase top margin for navbar, keep left and bottom margins */
+  /* Increase top margin for navbar, keep left margin, add minimal bottom padding */
   padding-top: 96px;
   padding-left: 48px;
-  padding-bottom: 8px;
+  padding-bottom: 1.5rem;
 }
 
 .faza-pucharowa-container h1 {
@@ -34,7 +34,6 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 .bracket-svg-container {
   width: 100vw;
   min-width: 0;
-  height: 100%;
   min-height: 0;
   margin: 0;
   position: relative;
@@ -43,9 +42,9 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   border-radius: 0;
   box-shadow: none;
   padding: 0;
-  /* Increase left margin for bracket, reduce bottom margin */
+  /* Increase left margin for bracket, REDUCE bottom margin */
   padding-left: 48px;
-  padding-bottom: 8px;
+  padding-bottom: 0.5rem;
 }
 
 .bracket-col-svg {
