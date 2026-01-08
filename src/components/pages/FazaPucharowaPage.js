@@ -205,8 +205,17 @@ export default function FazaPucharowaPage() {
     y: finalY
   };
 
+  // Dodaj margines na górze drabinki, przesuwając wszystkie pozycje w dół
+  const BRACKET_TOP_MARGIN = 38;
+  function shiftPositions(positions) {
+    return positions.map(col => col.map(pos => ({ ...pos, y: pos.y + BRACKET_TOP_MARGIN })));
+  }
+  const leftPositionsShifted = shiftPositions(leftPositions);
+  const rightPositionsShifted = shiftPositions(rightPositions);
+  const finalPosShifted = { ...finalPos, y: finalPos.y + BRACKET_TOP_MARGIN };
+
   // SVG line logic for symmetric bracket
-  function SymmetricBracketSVG() {
+  function SymmetricBracketSVG({ leftPositions, rightPositions, finalPos }) {
     // Collect all positions and lines
     const lines = [];
     // Left side
@@ -272,15 +281,15 @@ export default function FazaPucharowaPage() {
     );
   }
 
-  // Oblicz rzeczywistą wysokość drabinki (największe y + wysokość kafelka + margines)
+  // Oblicz rzeczywistą wysokość drabinki (największe y + wysokość kafelka + margines) po przesunięciu
   let maxY = 0;
-  [...leftPositions, ...rightPositions].forEach(col => {
+  [...leftPositionsShifted, ...rightPositionsShifted].forEach(col => {
     if (col && col.length) {
       const last = col[col.length - 1];
       if (last && last.y > maxY) maxY = last.y;
     }
   });
-  if (finalPos && finalPos.y > maxY) maxY = finalPos.y;
+  if (finalPosShifted && finalPosShifted.y > maxY) maxY = finalPosShifted.y;
   const containerWidth = Math.max(window.innerWidth, totalCols * (CARD_WIDTH + COL_GAP));
   const containerHeight = maxY + CARD_HEIGHT + CARD_GAP * 2;
 
@@ -295,112 +304,112 @@ export default function FazaPucharowaPage() {
         <div style={{ padding: 40, textAlign: "center" }}>Brak danych o drabince.</div>
       ) : (
         <div className="bracket-svg-container" style={{ position: 'relative', minWidth: containerWidth, width: containerWidth, height: containerHeight, margin: '0 auto', overflow: 'auto', paddingTop: 32 }}>
-          <SymmetricBracketSVG />
+          <SymmetricBracketSVG leftPositions={leftPositionsShifted} rightPositions={rightPositionsShifted} finalPos={finalPosShifted} />
           {/* Left side */}
           {leftRounds.map((matches, roundIdx) => (
             <div className="bracket-col-svg" key={"left-"+roundIdx} style={{ position: 'absolute', left: roundIdx * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
-              {/* Round labels: Runda 1, Runda 2, Ćwierćfinały, Półfinały */}
-              {(() => {
+              {matches.map((match, matchIdx) => {
                 const roundLabels = ["Runda 1", "Runda 2", "Ćwierćfinały", "Półfinały"];
-                if (roundIdx < roundLabels.length) {
-                  return (
-                    <div className="bracket-round-title" style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      width: '100%',
-                      textAlign: 'center',
-                      zIndex: 3,
-                      fontWeight: 700,
-                      fontSize: 18,
-                      color: '#2d3748',
-                      background: 'rgba(255,255,255,0.85)'
-                    }}>{roundLabels[roundIdx]}</div>
-                  );
-                }
-                return null;
-              })()}
-              {matches.map((match, matchIdx) => (
-                <div key={matchIdx} style={{ position: 'absolute', left: 0, top: leftPositions[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
-                  <MatchCard
-                    teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
-                    teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
-                    scoreA={match.scoreA}
-                    scoreB={match.scoreB}
-                    highlight={match.final}
-                    arctusy={match.arctusy}
-                    showOpis={roundIdx === 0}
-                  />
-                </div>
-              ))}
+                return (
+                  <div key={matchIdx} style={{ position: 'absolute', left: 0, top: leftPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
+                    {matchIdx === 0 && roundIdx < roundLabels.length && (
+                      <div className="bracket-round-title" style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: -32,
+                        width: '100%',
+                        fontWeight: 700,
+                        fontSize: 18,
+                        color: '#2d3748',
+                        background: 'rgba(255,255,255,0.85)',
+                        textAlign: 'center',
+                        pointerEvents: 'none',
+                        zIndex: 3
+                      }}>{roundLabels[roundIdx]}</div>
+                    )}
+                    <MatchCard
+                      teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
+                      teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
+                      scoreA={match.scoreA}
+                      scoreB={match.scoreB}
+                      highlight={match.final}
+                      arctusy={match.arctusy}
+                      showOpis={roundIdx === 0}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
           {/* Right side */}
           {rightRounds.map((matches, roundIdx) => (
             <div className="bracket-col-svg" key={"right-"+roundIdx} style={{ position: 'absolute', left: (totalCols - roundIdx - 1) * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
-              {/* Round labels: Runda 1, Runda 2, Ćwierćfinały, Półfinały */}
-              {(() => {
+              {matches.map((match, matchIdx) => {
                 const roundLabels = ["Runda 1", "Runda 2", "Ćwierćfinały", "Półfinały"];
-                if (roundIdx < roundLabels.length) {
-                  return (
-                    <div className="bracket-round-title" style={{
-                      position: 'absolute',
-                      left: 0,
-                      top: 0,
-                      width: '100%',
-                      textAlign: 'center',
-                      zIndex: 3,
-                      fontWeight: 700,
-                      fontSize: 18,
-                      color: '#2d3748',
-                      background: 'rgba(255,255,255,0.85)'
-                    }}>{roundLabels[roundIdx]}</div>
-                  );
-                }
-                return null;
-              })()}
-              {matches.map((match, matchIdx) => (
-                <div key={matchIdx} style={{ position: 'absolute', left: 0, top: rightPositions[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
-                  <MatchCard
-                    teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
-                    teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
-                    scoreA={match.scoreA}
-                    scoreB={match.scoreB}
-                    highlight={match.final}
-                    arctusy={match.arctusy}
-                    showOpis={roundIdx === 0}
-                  />
-                </div>
-              ))}
+                return (
+                  <div key={matchIdx} style={{ position: 'absolute', left: 0, top: rightPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
+                    {matchIdx === 0 && roundIdx < roundLabels.length && (
+                      <div className="bracket-round-title" style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: -32,
+                        width: '100%',
+                        fontWeight: 700,
+                        fontSize: 18,
+                        color: '#2d3748',
+                        background: 'rgba(255,255,255,0.85)',
+                        textAlign: 'center',
+                        pointerEvents: 'none',
+                        zIndex: 3
+                      }}>{roundLabels[roundIdx]}</div>
+                    )}
+                    <MatchCard
+                      teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
+                      teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
+                      scoreA={match.scoreA}
+                      scoreB={match.scoreB}
+                      highlight={match.final}
+                      arctusy={match.arctusy}
+                      showOpis={roundIdx === 0}
+                    />
+                  </div>
+                );
+              })}
             </div>
           ))}
           {/* Final match in center */}
           {finalMatch && (
-            <div className="bracket-col-svg" key="center-final" style={{ position: 'absolute', left: centerCol * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
-              <div className="bracket-round-title" style={{
-                position: 'absolute',
-                left: 0,
-                top: 0,
-                width: '100%',
-                textAlign: 'center',
-                zIndex: 3,
-                fontWeight: 700,
-                fontSize: 18,
-                color: '#2d3748',
-                background: 'rgba(255,255,255,0.85)'
-              }}>Finał</div>
-              <div style={{ position: 'absolute', left: 0, top: finalPos.y, width: CARD_WIDTH, zIndex: 2 }}>
-                <MatchCard
-                  teamA={{ nazwa: finalMatch.teamA_name || "-", druzyna: finalMatch.teamA_team || "", opis: finalMatch.teamA_opis }}
-                  teamB={finalMatch.teamB_id ? { nazwa: finalMatch.teamB_name || "-", druzyna: finalMatch.teamB_team || "" } : null}
-                  scoreA={finalMatch.scoreA}
-                  scoreB={finalMatch.scoreB}
-                  highlight={true}
-                  arctusy={finalMatch.arctusy}
-                  showOpis={false}
-                />
+              <div className="bracket-col-svg" key="center-final" style={{ position: 'absolute', left: centerCol * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
+                {/* Eksponowany opis Finał */}
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: finalPos.y - 58,
+                  width: CARD_WIDTH,
+                  textAlign: 'center',
+                  fontWeight: 900,
+                  fontSize: 22,
+                  color: '#0d7337',
+                  letterSpacing: 1,
+                  textShadow: '0 2px 8px #fff, 0 1px 0 #4299e1',
+                  zIndex: 5,
+                  pointerEvents: 'none',
+                  background: 'rgba(255,255,255,0.92)',
+                  padding: '0.2em 0 0.3em 0',
+                  borderRadius: 10
+                }}>Finał</div>
+                <div style={{ position: 'absolute', left: 0, top: finalPos.y, width: CARD_WIDTH, zIndex: 2 }}>
+                  <MatchCard
+                    teamA={{ nazwa: finalMatch.teamA_name || "-", druzyna: finalMatch.teamA_team || "", opis: finalMatch.teamA_opis }}
+                    teamB={finalMatch.teamB_id ? { nazwa: finalMatch.teamB_name || "-", druzyna: finalMatch.teamB_team || "" } : null}
+                    scoreA={finalMatch.scoreA}
+                    scoreB={finalMatch.scoreB}
+                    highlight={true}
+                    arctusy={finalMatch.arctusy}
+                    showOpis={false}
+                  />
+                </div>
               </div>
-            </div>
           )}
         </div>
       )}
