@@ -17,19 +17,32 @@ export function generateTournament(teams) {
   const sorted = [...teams].sort((a, b) => b.points - a.points);
   const slots = 32;
   const byes = slots - sorted.length;
-  // Assign byes to top N teams
-  const seeded = sorted.map((team, i) => ({
-    ...team,
-    seed: i + 1,
-    bye: i < byes
-  }));
-
-  // Place teams in bracket by seeding order
+  // Place teams in bracket by seeding order, leave byes as null
   const seedingOrder = getSeedingOrder32();
   const bracket = Array(slots).fill(null);
-  seeded.forEach((team, i) => {
-    bracket[seedingOrder[i] - 1] = team;
+  // Assign each team to a unique slot, leave remaining slots as null (bye)
+  for (let i = 0; i < Math.min(sorted.length, seedingOrder.length); i++) {
+    bracket[seedingOrder[i] - 1] = {
+      ...sorted[i],
+      seed: i + 1
+    };
+  }
+
+  // DEBUG: Log bracket assignment for diagnosis
+  console.log('Bracket assignment:', bracket.map(t => t ? t.name : null));
+
+  // DEBUG: Check for duplicate teamIds in bracket
+  const seen = new Set();
+  const duplicates = [];
+  bracket.forEach(t => {
+    if (t && t.teamId) {
+      if (seen.has(t.teamId)) duplicates.push(t.teamId);
+      seen.add(t.teamId);
+    }
   });
+  if (duplicates.length > 0) {
+    console.warn('DUPLICATE TEAM IDS IN BRACKET:', duplicates);
+  }
 
   // Helper to create matchId
   const matchId = (phase, idx) => `${phase}_${idx + 1}`;
@@ -40,9 +53,18 @@ export function generateTournament(teams) {
 
   // Phase 1: 16 matches
   for (let i = 0; i < slots; i += 2) {
-    const teamA = bracket[i];
-    const teamB = bracket[i + 1];
+    let teamA = bracket[i];
+    let teamB = bracket[i + 1];
     const idx = i / 2;
+    // If only one team is present, always assign to teamA and set teamB to null
+    if (teamA && !teamB) {
+      // teamA is present, teamB is null
+      // nothing to change
+    } else if (!teamA && teamB) {
+      // only teamB is present, move to teamA
+      teamA = teamB;
+      teamB = null;
+    }
     const match = {
       matchId: matchId(1, idx),
       phase: 1,
@@ -66,14 +88,32 @@ export function generateTournament(teams) {
   while (matchesInPhase >= 1) {
     const thisPhase = [];
     for (let i = 0; i < matchesInPhase; i++) {
+      // Determine teams for this match from previous phase
+      let prevA = prevPhaseMatches[i * 2];
+      let prevB = prevPhaseMatches[i * 2 + 1];
+      let teamA_id = prevA?.winnerId || prevA?.teamA_id || null;
+      let teamB_id = prevB?.winnerId || prevB?.teamA_id || null;
+      let teamA_name = prevA?.teamA_name || null;
+      let teamB_name = prevB?.teamA_name || null;
+      // If only one team is present, always assign to teamA and set teamB to null
+      if (teamA_id && !teamB_id) {
+        // teamA is present, teamB is null
+        // nothing to change
+      } else if (!teamA_id && teamB_id) {
+        // only teamB is present, move to teamA
+        teamA_id = teamB_id;
+        teamA_name = teamB_name;
+        teamB_id = null;
+        teamB_name = null;
+      }
       const match = {
         matchId: matchId(phase, i),
         phase,
         matchOrder: i,
-        teamA_id: null,
-        teamB_id: null,
-        teamA_name: null,
-        teamB_name: null,
+        teamA_id,
+        teamB_id,
+        teamA_name,
+        teamB_name,
         scoreA: null,
         scoreB: null,
         winnerId: null,

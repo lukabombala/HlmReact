@@ -69,6 +69,39 @@ const darkTextStyle = {
 };
 
 export default function PanelPage() {
+        // --- BRACKET CURRENT PHASE ---
+        const [currentPhase, setCurrentPhase] = useState('Runda 1');
+        const [phaseLoading, setPhaseLoading] = useState(false);
+        const [phaseError, setPhaseError] = useState("");
+        const phaseOptions = [
+          'Runda 1',
+          'Runda 2',
+          'Ćwierćfinały',
+          'Półfinały',
+          'Finał'
+        ];
+        useEffect(() => {
+          const db = getFirestore();
+          getDoc(doc(db, "config", "currentPhase")).then(snap => {
+            if (snap.exists()) {
+              setCurrentPhase(snap.data().phase || 'Runda 1');
+            }
+          });
+        }, []);
+        async function handlePhaseChange(e) {
+          const val = e.target.value;
+          setPhaseLoading(true);
+          setPhaseError("");
+          try {
+            const db = getFirestore();
+            await setDoc(doc(db, "config", "currentPhase"), { phase: val });
+            setCurrentPhase(val);
+          } catch (err) {
+            setPhaseError("Błąd zapisu fazy: " + (err.message || err));
+          } finally {
+            setPhaseLoading(false);
+          }
+        }
     // --- DRABINKA TOGGLE ---
     const [cupToggleLoading, setCupToggleLoading] = useState(false);
     const [cupToggleValue, setCupToggleValue] = useState(undefined);
@@ -115,6 +148,15 @@ export default function PanelPage() {
               style={{ fontWeight: 500, fontSize: "1.1rem" }}
             />
             {cupToggleError && <div className="text-danger mt-1">{cupToggleError}</div>}
+            <Form.Group className="mt-3">
+              <Form.Label>Obecnie trwająca faza drabinki</Form.Label>
+              <Form.Select value={currentPhase} onChange={handlePhaseChange} disabled={phaseLoading} style={{ fontWeight: 500, fontSize: "1.1rem", maxWidth: 300 }}>
+                {phaseOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </Form.Select>
+              {phaseError && <div className="text-danger mt-1">{phaseError}</div>}
+            </Form.Group>
           </Form>
         </div>
       );

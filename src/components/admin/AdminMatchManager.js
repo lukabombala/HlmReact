@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { zastepyListAll } from "../../services/zastepyList.mjs";
+import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import { Table, Button, Form, Spinner } from "react-bootstrap";
@@ -6,12 +8,16 @@ import { Table, Button, Form, Spinner } from "react-bootstrap";
 export default function AdminMatchManager() {
   const [matches, setMatches] = useState([]);
   const [saving, setSaving] = useState({});
+  const [zastepy, setZastepy] = useState([]);
+  const [jednostki, setJednostki] = useState([]);
   const db = getFirestore(app);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "matches"), snap => {
       setMatches(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
+    zastepyListAll().then(setZastepy);
+    jednostkiListAll().then(setJednostki);
     return unsub;
   }, [db]);
 
@@ -68,6 +74,27 @@ export default function AdminMatchManager() {
 
   if (!matches.length) return <Spinner animation="border" className="my-4" />;
 
+  // Map teamId to unit name
+  const teamIdToUnitName = {};
+  zastepy.forEach(z => {
+    if (z.id && z.jednostka && z.jednostka[0] && z.jednostka[0].id) {
+      const unit = jednostki.find(j => j.id === z.jednostka[0].id);
+      teamIdToUnitName[z.id] = unit?.shortName || "";
+    }
+  });
+
+  // Sortuj najpierw po fazie rosnąco, potem po meczu rosnąco (matchId)
+  const sortedMatches = matches.slice().sort((a, b) => {
+    const phaseA = Number(a.phase) || 0;
+    const phaseB = Number(b.phase) || 0;
+    if (phaseA !== phaseB) return phaseA - phaseB;
+    // sortuj po matchId jako string (np. "1", "2", "10")
+    if (a.matchId && b.matchId) return a.matchId.localeCompare(b.matchId, undefined, { numeric: true });
+    if (a.matchId) return -1;
+    if (b.matchId) return 1;
+    return 0;
+  });
+
   return (
     <div style={{ marginTop: 40, marginBottom: 40 }}>
       <h3>Panel admina: Zarządzanie meczami</h3>
@@ -78,12 +105,20 @@ export default function AdminMatchManager() {
           </tr>
         </thead>
         <tbody>
-          {matches.map(match => (
+          {sortedMatches.map(match => (
             <tr key={match.id}>
               <td>{match.matchId}</td>
               <td>{match.phase}</td>
-              <td>{match.teamA_name || <i>BYE</i>}</td>
-              <td>{match.teamB_name || <i>BYE</i>}</td>
+              <td>{
+                match.teamA_id
+                  ? <span>{match.teamA_name || "-"}<br /><span style={{ fontSize: '0.78em', color: '#888', fontWeight: 400 }}>{teamIdToUnitName[match.teamA_id] || ""}</span></span>
+                  : (Number(match.phase) === 1 && match.teamB_id ? <i>BYE</i> : <i style={{ color: '#bbb' }}>–</i>)
+              }</td>
+              <td>{
+                match.teamB_id
+                  ? <span>{match.teamB_name || "-"}<br /><span style={{ fontSize: '0.78em', color: '#888', fontWeight: 400 }}>{teamIdToUnitName[match.teamB_id] || ""}</span></span>
+                  : (Number(match.phase) === 1 && match.teamA_id ? <i>BYE</i> : <i style={{ color: '#bbb' }}>–</i>)
+              }</td>
               <td>
                 <Form.Control
                   type="number"

@@ -1,23 +1,28 @@
 import React, { useEffect, useState } from "react";
+import { zastepyListAll } from "../../services/zastepyList.mjs";
+import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import "./FazaPucharowaPage.css";
-import { getFirestore, collection, onSnapshot, query, orderBy } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot, query, orderBy, getDoc, doc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 
-function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis }) {
+function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis, phase }) {
+  // Only show 'wolny los' in phase 1, otherwise show empty slot
   return (
     <div className={`match-card${highlight ? ' highlight' : ''}${arctusy ? ' arctusy' : ''}`}> 
       <div className="match-top-row" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-        <div className="team teamA" style={{ flex: 1, textAlign: 'right', paddingRight: 6 }}>
-          <span className="nazwa">{teamA.nazwa}</span>
-          <span className="druzyna">{teamA.druzyna}</span>
+        <div className="team teamA" style={{ flex: 1, textAlign: 'right' }}>
+          <span className="nazwa">{teamA && teamA.nazwa ? teamA.nazwa : <span style={{ color: '#bbb' }}>–</span>}</span>
         </div>
         {teamB ? (
-          <div className="team teamB" style={{ flex: 1, textAlign: 'left', paddingLeft: 6 }}>
+          <div className="team teamB" style={{ flex: 1, textAlign: 'left' }}>
             <span className="nazwa">{teamB.nazwa}</span>
-            <span className="druzyna">{teamB.druzyna}</span>
           </div>
         ) : (
-          <div className="wolny-los" style={{ flex: 1, textAlign: 'left', paddingLeft: 6 }}>wolny los</div>
+          phase === 1 ? (
+            <div className="wolny-los" style={{ flex: 1, textAlign: 'left' }}>wolny los</div>
+          ) : (
+            <div className="team teamB" style={{ flex: 1, textAlign: 'left' }}><span style={{ color: '#bbb' }}>–</span></div>
+          )
         )}
       </div>
       <div className="match-bottom-row" style={{ width: '100%', textAlign: 'center', marginTop: 2 }}>
@@ -25,7 +30,7 @@ function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis 
           <span className="score">{scoreA} <span className="colon">:</span> {scoreB}</span>
         ) : null}
       </div>
-      {teamA.opis && (showOpis !== false) && <span className="opis">{teamA.opis}</span>}
+      {teamA && teamA.opis && (showOpis !== false) && <span className="opis">{teamA.opis}</span>}
     </div>
   );
 }
@@ -35,10 +40,10 @@ function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis 
 
 // Parametry układu
 const CARD_HEIGHT = 40;
-const CARD_WIDTH = 160;
-const CARD_GAP_PHASE1 = 38; // Increased gap for phase 1
+const CARD_WIDTH = 210;
+const CARD_GAP_PHASE1 = 38;
 const CARD_GAP = 18;
-const COL_GAP = 48;
+const COL_GAP = 18; // Slightly increased gap for better phase separation
 
 // Pomocnicza funkcja do wyliczania pozycji kafelków
 function getMatchY(roundIdx, matchIdx, roundLens, prevPositions = null) {
@@ -129,9 +134,21 @@ function BracketSVG({ rounds }) {
 
 
 export default function FazaPucharowaPage() {
+    // --- FETCH CURRENT PHASE ---
+    const [currentPhase, setCurrentPhase] = useState('Runda 1');
+    useEffect(() => {
+      const db = getFirestore(app);
+      getDoc(doc(db, "config", "currentPhase")).then(snap => {
+        if (snap.exists()) {
+          setCurrentPhase(snap.data().phase || 'Runda 1');
+        }
+      });
+    }, []);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [zastepy, setZastepy] = useState([]);
+  const [jednostki, setJednostki] = useState([]);
 
   useEffect(() => {
     const db = getFirestore(app);
@@ -144,6 +161,9 @@ export default function FazaPucharowaPage() {
       setError("Błąd ładowania drabinki: " + err.message);
       setLoading(false);
     });
+    // Fetch zastepy and jednostki
+    zastepyListAll().then(setZastepy);
+    jednostkiListAll().then(setJednostki);
     return unsub;
   }, []);
 
@@ -168,15 +188,264 @@ export default function FazaPucharowaPage() {
   // Shift all rounds left by one, so round 2 becomes round 1, etc.
   const roundsNoFirst = rounds.slice(1);
   // For each phase, split matches into left/right
+  // --- BYE/empty slot logic ---
+  // Helper: get winner from a match (if known)
+  function getWinner(match) {
+    if (!match) return null;
+    if (match.scoreA != null && match.scoreB != null && match.teamA_id && match.teamB_id) {
+      if (match.scoreA > match.scoreB) return { id: match.teamA_id, nazwa: match.teamA_name, druzyna: match.teamA_team };
+      if (match.scoreB > match.scoreA) return { id: match.teamB_id, nazwa: match.teamB_name, druzyna: match.teamB_team };
+    }
+    // BYE in phase 1
+    if (Number(match.phase) === 1 && match.teamA_id && !match.teamB_id) {
+      return { id: match.teamA_id, nazwa: match.teamA_name, druzyna: match.teamA_team };
+    }
+    if (Number(match.phase) === 1 && !match.teamA_id && match.teamB_id) {
+      return { id: match.teamB_id, nazwa: match.teamB_name, druzyna: match.teamB_team };
+    }
+    return null;
+  }
+
+  // Helper: map teamId to unit name and full unit name
+  const teamIdToUnit = {};
+  zastepy.forEach(z => {
+    if (z.id && z.jednostka && z.jednostka[0] && z.jednostka[0].id) {
+      const unit = jednostki.find(j => j.id === z.jednostka[0].id);
+      teamIdToUnit[z.id] = {
+        shortName: unit?.shortName || "",
+        fullName: unit?.name || ""
+      };
+    }
+  });
+
+  // Gather all patrol names in the bracket (phase 1)
+  const patrolNameCounts = {};
+  (roundsNoFirst[0] || []).forEach(match => {
+    if (match.teamA_name) {
+      patrolNameCounts[match.teamA_name] = (patrolNameCounts[match.teamA_name] || 0) + 1;
+    }
+    if (match.teamB_name) {
+      patrolNameCounts[match.teamB_name] = (patrolNameCounts[match.teamB_name] || 0) + 1;
+    }
+  });
+
+
+  // Build rounds with correct team slots for each match
   const leftRounds = [];
   const rightRounds = [];
+  let prevLeftWinners = null;
+  let prevRightWinners = null;
   for (let i = 0; i < roundsNoFirst.length - 1; i++) {
     const r = roundsNoFirst[i] || [];
-    leftRounds.push(r.slice(0, Math.ceil(r.length / 2)));
-    rightRounds.push(r.slice(Math.ceil(r.length / 2)));
+    // left
+    const left = [];
+    for (let j = 0; j < Math.ceil(r.length / 2); j++) {
+      const match = r[j];
+      let teamA = null, teamB = null;
+      // Always check for duplicate patrol names in every phase
+      // Phase 1: ensure bye logic is correct
+      if (i === 0) {
+        if (match.teamA_id && !match.teamB_id) {
+          // Only teamA present, teamB is empty (bye)
+          let nazwa = match.teamA_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamA_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamA = { nazwa, opis: match.teamA_opis };
+          teamB = null;
+        } else if (!match.teamA_id && match.teamB_id) {
+          // Only teamB present, assign to teamA, teamB is empty (bye)
+          let nazwa = match.teamB_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamB_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamA = { nazwa, opis: match.teamB_opis };
+          teamB = null;
+        } else {
+          // Both teams present or both missing
+          if (match.teamA_id) {
+            let nazwa = match.teamA_name || "";
+            if (patrolNameCounts[nazwa] > 1) {
+              const unit = teamIdToUnit[match.teamA_id];
+              let teamNumber = '';
+              if (unit?.shortName) {
+                const match = unit.shortName.match(/^(\d+)/);
+                if (match) teamNumber = match[1];
+              }
+              if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+            }
+            teamA = { nazwa, opis: match.teamA_opis };
+          }
+          if (match.teamB_id) {
+            let nazwa = match.teamB_name || "";
+            if (patrolNameCounts[nazwa] > 1) {
+              const unit = teamIdToUnit[match.teamB_id];
+              let teamNumber = '';
+              if (unit?.shortName) {
+                const match = unit.shortName.match(/^(\d+)/);
+                if (match) teamNumber = match[1];
+              }
+              if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+            }
+            teamB = { nazwa };
+          }
+        }
+      } else {
+        // ...existing code for later phases...
+        if (match.teamA_id) {
+          let nazwa = match.teamA_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamA_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamA = { nazwa, opis: match.teamA_opis };
+        }
+        if (match.teamB_id) {
+          let nazwa = match.teamB_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamB_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamB = { nazwa };
+        }
+      }
+      // For later phases, propagate suffix if needed
+      if (i > 0 && prevLeftWinners) {
+        const prev1 = prevLeftWinners[j * 2] || null;
+        const prev2 = prevLeftWinners[j * 2 + 1] || null;
+        let teamAName = prev1 && prev1.nazwa ? prev1.nazwa : "";
+        let teamBName = prev2 && prev2.nazwa ? prev2.nazwa : "";
+        if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && prev1 && prev1.id) {
+          const unit = teamIdToUnit[prev1.id];
+          let teamNumber = '';
+          if (unit?.shortName) {
+            const match = unit.shortName.match(/^(\d+)/);
+            if (match) teamNumber = match[1];
+          }
+          if (teamNumber && !teamAName.includes(' - ' + teamNumber)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamNumber;
+        }
+        if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && prev2 && prev2.id) {
+          const unit = teamIdToUnit[prev2.id];
+          let teamNumber = '';
+          if (unit?.shortName) {
+            const match = unit.shortName.match(/^(\d+)/);
+            if (match) teamNumber = match[1];
+          }
+          if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
+        }
+        teamA = prev1 ? { nazwa: teamAName } : teamA;
+        teamB = prev2 ? { nazwa: teamBName } : teamB;
+      }
+      left.push({ ...match, teamA, teamB });
+    }
+    leftRounds.push(left);
+    // right
+    const right = [];
+    for (let j = Math.ceil(r.length / 2); j < r.length; j++) {
+      const match = r[j];
+      let teamA = null, teamB = null;
+      if (i === 0) {
+        if (match.teamA_id) {
+          let nazwa = match.teamA_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamA_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamA = { nazwa, opis: match.teamA_opis };
+        }
+        if (match.teamB_id) {
+          let nazwa = match.teamB_name || "";
+          if (patrolNameCounts[nazwa] > 1) {
+            const unit = teamIdToUnit[match.teamB_id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const match = unit.shortName.match(/^(\d+)/);
+              if (match) teamNumber = match[1];
+            }
+            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
+          }
+          teamB = { nazwa };
+        }
+      } else if (prevRightWinners) {
+        const prev1 = prevRightWinners[(j - Math.ceil(r.length / 2)) * 2] || null;
+        const prev2 = prevRightWinners[(j - Math.ceil(r.length / 2)) * 2 + 1] || null;
+        let teamAName = prev1 && prev1.nazwa ? prev1.nazwa : "";
+        let teamBName = prev2 && prev2.nazwa ? prev2.nazwa : "";
+        if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && prev1 && prev1.id) {
+          const unit = teamIdToUnit[prev1.id];
+          let teamNumber = '';
+          if (unit?.shortName) {
+            const match = unit.shortName.match(/^(\d+)/);
+            if (match) teamNumber = match[1];
+          }
+          if (teamNumber && !teamAName.includes(' - ' + teamNumber)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamNumber;
+        }
+        if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && prev2 && prev2.id) {
+          const unit = teamIdToUnit[prev2.id];
+          let teamNumber = '';
+          if (unit?.shortName) {
+            const match = unit.shortName.match(/^(\d+)/);
+            if (match) teamNumber = match[1];
+          }
+          if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
+        }
+        teamA = prev1 ? { nazwa: teamAName } : null;
+        teamB = prev2 ? { nazwa: teamBName } : null;
+      }
+      right.push({ ...match, teamA, teamB });
+    }
+    rightRounds.push(right);
+    // Prepare winners for next round
+    prevLeftWinners = left.map(getWinner);
+    prevRightWinners = right.map(getWinner);
   }
   // Final match (center)
-  const finalMatch = (roundsNoFirst[roundsNoFirst.length - 1] && roundsNoFirst[roundsNoFirst.length - 1][0]) || null;
+  let finalMatch = null;
+  if (roundsNoFirst[roundsNoFirst.length - 1] && roundsNoFirst[roundsNoFirst.length - 1][0]) {
+    const match = roundsNoFirst[roundsNoFirst.length - 1][0];
+    let teamA = prevLeftWinners && prevLeftWinners[0] ? prevLeftWinners[0] : null;
+    let teamB = prevRightWinners && prevRightWinners[0] ? prevRightWinners[0] : null;
+    let teamAName = teamA && teamA.nazwa ? teamA.nazwa : "";
+    let teamBName = teamB && teamB.nazwa ? teamB.nazwa : "";
+    if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && teamA && teamA.id) {
+      const unit = teamIdToUnit[teamA.id];
+      const teamName = unit?.fullName;
+      if (teamName && !teamAName.includes(' - ' + teamName)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamName;
+    }
+    if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && teamB && teamB.id) {
+      const unit = teamIdToUnit[teamB.id];
+      const teamName = unit?.fullName;
+      if (teamName && !teamBName.includes(' - ' + teamName)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamName;
+    }
+    finalMatch = { ...match, teamA: teamA ? { nazwa: teamAName } : null, teamB: teamB ? { nazwa: teamBName } : null };
+  }
 
   // Calculate positions for left, right, and center
   function getSymmetricPositions(roundsArr, side, totalCols) {
@@ -194,30 +463,37 @@ export default function FazaPucharowaPage() {
       return positions;
     });
   }
-  const totalCols = leftRounds.length + rightRounds.length + 1;
+  // Remove final column: only left and right rounds
+  const totalCols = leftRounds.length + rightRounds.length;
   const leftPositions = getSymmetricPositions(leftRounds, 'left', totalCols);
   const rightPositions = getSymmetricPositions(rightRounds, 'right', totalCols);
-  // Center position for final
-  const centerCol = leftRounds.length;
-  const finalY = (leftPositions[leftPositions.length - 1]?.[0]?.y ?? 0 + rightPositions[rightPositions.length - 1]?.[0]?.y ?? 0) / 2;
-  const finalPos = {
-    x: centerCol * (CARD_WIDTH + COL_GAP),
-    y: finalY
-  };
 
   // Dodaj margines na górze drabinki, przesuwając wszystkie pozycje w dół
+  // Move semifinals up by reducing the margin for the last round
   const BRACKET_TOP_MARGIN = 38;
-  function shiftPositions(positions) {
-    return positions.map(col => col.map(pos => ({ ...pos, y: pos.y + BRACKET_TOP_MARGIN })));
+  const SEMIFINAL_UP_SHIFT = 40; // px to move semifinals up
+  function shiftPositions(positions, side) {
+    // For semifinals, shift X outward by 16px (0.5cm) for each side
+    const SEMIFINAL_X_SHIFT = 16;
+    return positions.map((col, roundIdx, arr) => {
+      if (roundIdx === arr.length - 1 && col.length === 1) {
+        return col.map(pos => ({
+          ...pos,
+          y: pos.y + BRACKET_TOP_MARGIN - SEMIFINAL_UP_SHIFT,
+          x: side === 'left' ? pos.x - SEMIFINAL_X_SHIFT : side === 'right' ? pos.x + SEMIFINAL_X_SHIFT : pos.x
+        }));
+      }
+      return col.map(pos => ({ ...pos, y: pos.y + BRACKET_TOP_MARGIN }));
+    });
   }
-  const leftPositionsShifted = shiftPositions(leftPositions);
-  const rightPositionsShifted = shiftPositions(rightPositions);
-  const finalPosShifted = { ...finalPos, y: finalPos.y + BRACKET_TOP_MARGIN };
+  const leftPositionsShifted = shiftPositions(leftPositions, 'left');
+  const rightPositionsShifted = shiftPositions(rightPositions, 'right');
 
-  // SVG line logic for symmetric bracket
+  // SVG line logic for symmetric bracket, with final connectors
   function SymmetricBracketSVG({ leftPositions, rightPositions, finalPos }) {
     // Collect all positions and lines
     const lines = [];
+    const OUT_LINE = 6;
     // Left side
     for (let r = 0; r < leftPositions.length - 1; r++) {
       if (!leftPositions[r] || !leftPositions[r + 1] || leftPositions[r].length < 2) continue;
@@ -226,13 +502,30 @@ export default function FazaPucharowaPage() {
         const prev2 = leftPositions[r][m * 2 + 1];
         const next = leftPositions[r + 1][m];
         if (!prev1 || !prev2 || !next) continue;
-        // Horizontal lines
-        lines.push({ x1: prev1.x + CARD_WIDTH, y1: prev1.y + CARD_HEIGHT / 2, x2: prev1.x + CARD_WIDTH + 14, y2: prev1.y + CARD_HEIGHT / 2 });
-        lines.push({ x1: prev2.x + CARD_WIDTH, y1: prev2.y + CARD_HEIGHT / 2, x2: prev2.x + CARD_WIDTH + 14, y2: prev2.y + CARD_HEIGHT / 2 });
-        // Vertical connector
-        lines.push({ x1: prev1.x + CARD_WIDTH + 14, y1: prev1.y + CARD_HEIGHT / 2, x2: prev2.x + CARD_WIDTH + 14, y2: prev2.y + CARD_HEIGHT / 2 });
-        // Horizontal to next match
-        lines.push({ x1: prev1.x + CARD_WIDTH + 14, y1: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2, x2: next.x, y2: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2 });
+        // For semifinals, draw a right-angle connector: horizontal to align with semifinal Y, then vertical
+        if (r === leftPositions.length - 2 && leftPositions[r + 1].length === 1) {
+          // This is the last connector to semifinal (which is shifted up)
+          // Make the horizontal segment longer for clarity
+          const HORIZ_EXTEND = 32; // px, increase for longer horizontal segment
+          const semifinalX = next.x;
+          const semifinalY = next.y + CARD_HEIGHT / 2;
+          // From prev1
+          lines.push({ x1: prev1.x + CARD_WIDTH, y1: prev1.y + CARD_HEIGHT / 2, x2: semifinalX - HORIZ_EXTEND, y2: prev1.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: semifinalX - HORIZ_EXTEND, y1: prev1.y + CARD_HEIGHT / 2, x2: semifinalX - HORIZ_EXTEND, y2: semifinalY });
+          lines.push({ x1: semifinalX - HORIZ_EXTEND, y1: semifinalY, x2: semifinalX, y2: semifinalY });
+          // From prev2
+          lines.push({ x1: prev2.x + CARD_WIDTH, y1: prev2.y + CARD_HEIGHT / 2, x2: semifinalX - HORIZ_EXTEND, y2: prev2.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: semifinalX - HORIZ_EXTEND, y1: prev2.y + CARD_HEIGHT / 2, x2: semifinalX - HORIZ_EXTEND, y2: semifinalY });
+          lines.push({ x1: semifinalX - HORIZ_EXTEND, y1: semifinalY, x2: semifinalX, y2: semifinalY });
+        } else {
+          // Horizontal lines (shorter outward)
+          lines.push({ x1: prev1.x + CARD_WIDTH, y1: prev1.y + CARD_HEIGHT / 2, x2: prev1.x + CARD_WIDTH + OUT_LINE, y2: prev1.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: prev2.x + CARD_WIDTH, y1: prev2.y + CARD_HEIGHT / 2, x2: prev2.x + CARD_WIDTH + OUT_LINE, y2: prev2.y + CARD_HEIGHT / 2 });
+          // Vertical connector
+          lines.push({ x1: prev1.x + CARD_WIDTH + OUT_LINE, y1: prev1.y + CARD_HEIGHT / 2, x2: prev2.x + CARD_WIDTH + OUT_LINE, y2: prev2.y + CARD_HEIGHT / 2 });
+          // Horizontal to next match (adjusted Y)
+          lines.push({ x1: prev1.x + CARD_WIDTH + OUT_LINE, y1: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2, x2: next.x, y2: next.y + CARD_HEIGHT / 2 });
+        }
       }
     }
     // Right side
@@ -243,23 +536,66 @@ export default function FazaPucharowaPage() {
         const prev2 = rightPositions[r][m * 2 + 1];
         const next = rightPositions[r + 1][m];
         if (!prev1 || !prev2 || !next) continue;
-        // Horizontal lines (to left)
-        lines.push({ x1: prev1.x, y1: prev1.y + CARD_HEIGHT / 2, x2: prev1.x - 14, y2: prev1.y + CARD_HEIGHT / 2 });
-        lines.push({ x1: prev2.x, y1: prev2.y + CARD_HEIGHT / 2, x2: prev2.x - 14, y2: prev2.y + CARD_HEIGHT / 2 });
-        // Vertical connector
-        lines.push({ x1: prev1.x - 14, y1: prev1.y + CARD_HEIGHT / 2, x2: prev2.x - 14, y2: prev2.y + CARD_HEIGHT / 2 });
-        // Horizontal to next match
-        lines.push({ x1: prev1.x - 14, y1: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2, x2: next.x, y2: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2 });
+        // For semifinals, draw a right-angle connector: horizontal to align with semifinal Y, then vertical
+        if (r === rightPositions.length - 2 && rightPositions[r + 1].length === 1) {
+          // This is the last connector to semifinal (which is shifted up)
+          // Make the horizontal segment longer for clarity
+          const HORIZ_EXTEND = 32; // px, increase for longer horizontal segment
+          const semifinalX = next.x + CARD_WIDTH;
+          const semifinalY = next.y + CARD_HEIGHT / 2;
+          // From prev1
+          lines.push({ x1: prev1.x, y1: prev1.y + CARD_HEIGHT / 2, x2: semifinalX + HORIZ_EXTEND, y2: prev1.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: semifinalX + HORIZ_EXTEND, y1: prev1.y + CARD_HEIGHT / 2, x2: semifinalX + HORIZ_EXTEND, y2: semifinalY });
+          lines.push({ x1: semifinalX + HORIZ_EXTEND, y1: semifinalY, x2: semifinalX, y2: semifinalY });
+          // From prev2
+          lines.push({ x1: prev2.x, y1: prev2.y + CARD_HEIGHT / 2, x2: semifinalX + HORIZ_EXTEND, y2: prev2.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: semifinalX + HORIZ_EXTEND, y1: prev2.y + CARD_HEIGHT / 2, x2: semifinalX + HORIZ_EXTEND, y2: semifinalY });
+          lines.push({ x1: semifinalX + HORIZ_EXTEND, y1: semifinalY, x2: semifinalX, y2: semifinalY });
+        } else {
+          // Horizontal lines (shorter outward)
+          lines.push({ x1: prev1.x, y1: prev1.y + CARD_HEIGHT / 2, x2: prev1.x - OUT_LINE, y2: prev1.y + CARD_HEIGHT / 2 });
+          lines.push({ x1: prev2.x, y1: prev2.y + CARD_HEIGHT / 2, x2: prev2.x - OUT_LINE, y2: prev2.y + CARD_HEIGHT / 2 });
+          // Vertical connector
+          lines.push({ x1: prev1.x - OUT_LINE, y1: prev1.y + CARD_HEIGHT / 2, x2: prev2.x - OUT_LINE, y2: prev2.y + CARD_HEIGHT / 2 });
+          // Horizontal to next match (adjusted Y)
+          lines.push({ x1: prev1.x - OUT_LINE, y1: (prev1.y + prev2.y) / 2 + CARD_HEIGHT / 2, x2: next.x, y2: next.y + CARD_HEIGHT / 2 });
+        }
       }
     }
-    // Connect last left and right to final
-    const leftLast = leftPositions[leftPositions.length - 1]?.[0];
-    const rightLast = rightPositions[rightPositions.length - 1]?.[0];
-    if (leftLast && finalPos) {
-      lines.push({ x1: leftLast.x + CARD_WIDTH, y1: leftLast.y + CARD_HEIGHT / 2, x2: finalPos.x, y2: finalPos.y + CARD_HEIGHT / 2 });
-    }
-    if (rightLast && finalPos) {
-      lines.push({ x1: rightLast.x, y1: rightLast.y + CARD_HEIGHT / 2, x2: finalPos.x + CARD_WIDTH, y2: finalPos.y + CARD_HEIGHT / 2 });
+    // Lines from semifinals to final (adjusted for up-shift)
+    if (finalPos && leftPositions[leftPositions.length - 1]?.[0] && rightPositions[rightPositions.length - 1]?.[0]) {
+      const leftSemi = leftPositions[leftPositions.length - 1][0];
+      const rightSemi = rightPositions[rightPositions.length - 1][0];
+      // Optionally, add a small vertical segment down from the bottom of the semifinal card, then diagonal to the final
+      const SEMIFINAL_CONNECTOR = 18; // px vertical segment below semifinal before diagonal
+      // Left semifinal
+      lines.push({
+        x1: leftSemi.x + CARD_WIDTH / 2,
+        y1: leftSemi.y + CARD_HEIGHT,
+        x2: leftSemi.x + CARD_WIDTH / 2,
+        y2: leftSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR
+      });
+      // Right semifinal
+      lines.push({
+        x1: rightSemi.x + CARD_WIDTH / 2,
+        y1: rightSemi.y + CARD_HEIGHT,
+        x2: rightSemi.x + CARD_WIDTH / 2,
+        y2: rightSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR
+      });
+      // Diagonal from left vertical to final
+      lines.push({
+        x1: leftSemi.x + CARD_WIDTH / 2,
+        y1: leftSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR,
+        x2: finalPos.x + CARD_WIDTH / 2,
+        y2: finalPos.y
+      });
+      // Diagonal from right vertical to final
+      lines.push({
+        x1: rightSemi.x + CARD_WIDTH / 2,
+        y1: rightSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR,
+        x2: finalPos.x + CARD_WIDTH / 2,
+        y2: finalPos.y
+      });
     }
     // SVG size
     let maxY = 0;
@@ -269,7 +605,7 @@ export default function FazaPucharowaPage() {
         if (last && last.y > maxY) maxY = last.y;
       }
     });
-    if (finalPos.y > maxY) maxY = finalPos.y;
+    if (finalPos && finalPos.y + CARD_HEIGHT > maxY) maxY = finalPos.y + CARD_HEIGHT;
     const svgWidth = totalCols * (CARD_WIDTH + COL_GAP);
     const svgHeight = maxY + CARD_HEIGHT + CARD_GAP * 2;
     return (
@@ -281,6 +617,23 @@ export default function FazaPucharowaPage() {
     );
   }
 
+  // Calculate final card position: below semifinals, centered
+  let finalPos = null;
+  if (leftPositionsShifted.length && rightPositionsShifted.length) {
+    const leftSemi = leftPositionsShifted[leftPositionsShifted.length - 1]?.[0];
+    const rightSemi = rightPositionsShifted[rightPositionsShifted.length - 1]?.[0];
+    if (leftSemi && rightSemi) {
+      // Center final card between the inner edges of the two semifinals
+      const semiY = Math.max(leftSemi.y, rightSemi.y);
+      const finalY = semiY + CARD_HEIGHT + 40; // 40px gap below semifinals
+      // Find the right edge of the left semifinal and the left edge of the right semifinal
+      const leftEdge = leftSemi.x + CARD_WIDTH;
+      const rightEdge = rightSemi.x;
+      const midEdge = (leftEdge + rightEdge) / 2;
+      const finalX = midEdge - CARD_WIDTH / 2;
+      finalPos = { x: finalX, y: finalY };
+    }
+  }
   // Oblicz rzeczywistą wysokość drabinki (największe y + wysokość kafelka + margines) po przesunięciu
   let maxY = 0;
   [...leftPositionsShifted, ...rightPositionsShifted].forEach(col => {
@@ -289,7 +642,7 @@ export default function FazaPucharowaPage() {
       if (last && last.y > maxY) maxY = last.y;
     }
   });
-  if (finalPosShifted && finalPosShifted.y > maxY) maxY = finalPosShifted.y;
+  if (finalPos && finalPos.y + CARD_HEIGHT > maxY) maxY = finalPos.y + CARD_HEIGHT;
   const containerWidth = Math.max(window.innerWidth, totalCols * (CARD_WIDTH + COL_GAP));
   const containerHeight = maxY + CARD_HEIGHT + CARD_GAP * 2;
 
@@ -304,14 +657,18 @@ export default function FazaPucharowaPage() {
         <div style={{ padding: 40, textAlign: "center" }}>Brak danych o drabince.</div>
       ) : (
         <div className="bracket-svg-container" style={{ position: 'relative', minWidth: containerWidth, width: containerWidth, height: containerHeight, margin: '0 auto', overflow: 'auto', paddingTop: 32 }}>
-          <SymmetricBracketSVG leftPositions={leftPositionsShifted} rightPositions={rightPositionsShifted} finalPos={finalPosShifted} />
+          <SymmetricBracketSVG leftPositions={leftPositionsShifted} rightPositions={rightPositionsShifted} finalPos={finalPos} />
           {/* Left side */}
           {leftRounds.map((matches, roundIdx) => (
             <div className="bracket-col-svg" key={"left-"+roundIdx} style={{ position: 'absolute', left: roundIdx * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
               {matches.map((match, matchIdx) => {
                 const roundLabels = ["Runda 1", "Runda 2", "Ćwierćfinały", "Półfinały"];
+                // For semifinals, shift left by 16px
+                const SEMIFINAL_X_SHIFT = 16;
+                const isSemifinal = roundIdx === leftPositionsShifted.length - 1 && matches.length === 1;
+                const cardLeft = isSemifinal ? -SEMIFINAL_X_SHIFT : 0;
                 return (
-                  <div key={matchIdx} style={{ position: 'absolute', left: 0, top: leftPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
+                  <div key={matchIdx} style={{ position: 'absolute', left: cardLeft, top: leftPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
                     {matchIdx === 0 && roundIdx < roundLabels.length && (
                       <div className="bracket-round-title" style={{
                         position: 'absolute',
@@ -324,17 +681,32 @@ export default function FazaPucharowaPage() {
                         background: 'rgba(255,255,255,0.85)',
                         textAlign: 'center',
                         pointerEvents: 'none',
-                        zIndex: 3
-                      }}>{roundLabels[roundIdx]}</div>
+                        zIndex: 3,
+                        borderRadius: roundLabels[roundIdx] === currentPhase ? 8 : 0,
+                        boxShadow: roundLabels[roundIdx] === currentPhase ? '0 2px 8px #2563eb55' : undefined
+                      }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                          <span>{roundLabels[roundIdx]}</span>
+                          {roundLabels[roundIdx] === currentPhase && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, marginLeft: 8 }} title="Obecna faza">
+                              <svg width="24" height="24" style={{ display: 'block', margin: '0 auto' }}>
+                                <circle cx="12" cy="12" r="10" fill="#FFD700" />
+                                <text x="12" y="17" textAnchor="middle" fontSize="18" fill="#fff" fontWeight="bold">★</text>
+                              </svg>
+                            </span>
+                          )}
+                        </span>
+                      </div>
                     )}
                     <MatchCard
-                      teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
-                      teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
+                      teamA={match.teamA}
+                      teamB={match.teamB}
                       scoreA={match.scoreA}
                       scoreB={match.scoreB}
                       highlight={match.final}
                       arctusy={match.arctusy}
                       showOpis={roundIdx === 0}
+                      phase={roundIdx + 1}
                     />
                   </div>
                 );
@@ -346,8 +718,12 @@ export default function FazaPucharowaPage() {
             <div className="bracket-col-svg" key={"right-"+roundIdx} style={{ position: 'absolute', left: (totalCols - roundIdx - 1) * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
               {matches.map((match, matchIdx) => {
                 const roundLabels = ["Runda 1", "Runda 2", "Ćwierćfinały", "Półfinały"];
+                // For semifinals, shift right by 16px
+                const SEMIFINAL_X_SHIFT = 16;
+                const isSemifinal = roundIdx === rightPositionsShifted.length - 1 && matches.length === 1;
+                const cardLeft = isSemifinal ? SEMIFINAL_X_SHIFT : 0;
                 return (
-                  <div key={matchIdx} style={{ position: 'absolute', left: 0, top: rightPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
+                  <div key={matchIdx} style={{ position: 'absolute', left: cardLeft, top: rightPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
                     {matchIdx === 0 && roundIdx < roundLabels.length && (
                       <div className="bracket-round-title" style={{
                         position: 'absolute',
@@ -361,55 +737,78 @@ export default function FazaPucharowaPage() {
                         textAlign: 'center',
                         pointerEvents: 'none',
                         zIndex: 3
-                      }}>{roundLabels[roundIdx]}</div>
+                      }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                          <span>{roundLabels[roundIdx]}</span>
+                          {roundLabels[roundIdx] === currentPhase && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, marginLeft: 8 }} title="Obecna faza">
+                              <svg width="24" height="24" style={{ display: 'block', margin: '0 auto' }}>
+                                <circle cx="12" cy="12" r="10" fill="#FFD700" />
+                                <text x="12" y="17" textAnchor="middle" fontSize="18" fill="#fff" fontWeight="bold">★</text>
+                              </svg>
+                            </span>
+                          )}
+                        </span>
+                      </div>
                     )}
                     <MatchCard
-                      teamA={{ nazwa: match.teamA_name || "-", druzyna: match.teamA_team || "", opis: match.teamA_opis }}
-                      teamB={match.teamB_id ? { nazwa: match.teamB_name || "-", druzyna: match.teamB_team || "" } : null}
+                      teamA={match.teamA}
+                      teamB={match.teamB}
                       scoreA={match.scoreA}
                       scoreB={match.scoreB}
                       highlight={match.final}
                       arctusy={match.arctusy}
                       showOpis={roundIdx === 0}
+                      phase={roundIdx + 1}
                     />
                   </div>
                 );
               })}
             </div>
           ))}
-          {/* Final match in center */}
-          {finalMatch && (
-              <div className="bracket-col-svg" key="center-final" style={{ position: 'absolute', left: centerCol * (CARD_WIDTH + COL_GAP), top: 0, width: CARD_WIDTH, height: containerHeight }}>
-                {/* Eksponowany opis Finał */}
+          {/* Final match card below semifinals, centered */}
+          {finalMatch && finalPos && (
+            <div
+              className="bracket-col-svg"
+              key="center-final"
+              style={{
+                position: 'absolute',
+                left: finalPos.x,
+                top: finalPos.y,
+                width: CARD_WIDTH,
+                height: CARD_HEIGHT,
+                zIndex: 3,
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <div style={{ width: CARD_WIDTH }}>
                 <div style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: finalPos.y - 58,
-                  width: CARD_WIDTH,
                   textAlign: 'center',
                   fontWeight: 900,
-                  fontSize: 22,
+                  fontSize: 18,
                   color: '#0d7337',
                   letterSpacing: 1,
                   textShadow: '0 2px 8px #fff, 0 1px 0 #4299e1',
-                  zIndex: 5,
-                  pointerEvents: 'none',
                   background: 'rgba(255,255,255,0.92)',
                   padding: '0.2em 0 0.3em 0',
-                  borderRadius: 10
+                  borderRadius: 10,
+                  marginBottom: 2
                 }}>Finał</div>
-                <div style={{ position: 'absolute', left: 0, top: finalPos.y, width: CARD_WIDTH, zIndex: 2 }}>
-                  <MatchCard
-                    teamA={{ nazwa: finalMatch.teamA_name || "-", druzyna: finalMatch.teamA_team || "", opis: finalMatch.teamA_opis }}
-                    teamB={finalMatch.teamB_id ? { nazwa: finalMatch.teamB_name || "-", druzyna: finalMatch.teamB_team || "" } : null}
-                    scoreA={finalMatch.scoreA}
-                    scoreB={finalMatch.scoreB}
-                    highlight={true}
-                    arctusy={finalMatch.arctusy}
-                    showOpis={false}
-                  />
-                </div>
+                <MatchCard
+                  teamA={finalMatch.teamA}
+                  teamB={finalMatch.teamB}
+                  scoreA={finalMatch.scoreA}
+                  scoreB={finalMatch.scoreB}
+                  highlight={true}
+                  arctusy={finalMatch.arctusy}
+                  showOpis={false}
+                  phase={leftRounds.length + 1}
+                />
               </div>
+            </div>
           )}
         </div>
       )}
