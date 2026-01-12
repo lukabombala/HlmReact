@@ -5,17 +5,30 @@ import "./FazaPucharowaPage.css";
 import { getFirestore, collection, onSnapshot, query, orderBy, getDoc, doc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 
+// Map unit id to color
+const UNIT_COLORS = {
+  '0zQ12o8ZqqvxLkyP3H9H': '#4fc3f7', // kompania - błękitny
+  '0zQ12o8ZqqvxLkyP3H9I': '#43a047', // gawra - zielony
+  '0zQ12o8ZqqvxLkyP3H9M': '#222',    // bukowina - czarny
+  '0zQ12o8ZqqvxLkyP3H9L': '#1976d2', // wawer - niebieski/chabrowy
+  '0zQ12o8ZqqvxLkyP3H9J': '#8b1c2c', // puszcza - bordowy
+  '0zQ12o8ZqqvxLkyP3H9K': '#e53935', // parasol - czerwony
+};
+
 function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis, phase }) {
-  // Only show 'wolny los' in phase 1, otherwise show empty slot
+  function getColor(team) {
+    if (!team || !team.unitId) return undefined;
+    return UNIT_COLORS[team.unitId] || undefined;
+  }
   return (
     <div className={`match-card${highlight ? ' highlight' : ''}${arctusy ? ' arctusy' : ''}`}> 
       <div className="match-top-row" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div className="team teamA" style={{ flex: 1, textAlign: 'right' }}>
-          <span className="nazwa">{teamA && teamA.nazwa ? teamA.nazwa : <span style={{ color: '#bbb' }}>–</span>}</span>
+          <span className="nazwa" style={{ color: getColor(teamA) }}>{teamA && teamA.nazwa ? teamA.nazwa : <span style={{ color: '#bbb' }}>–</span>}</span>
         </div>
         {teamB ? (
           <div className="team teamB" style={{ flex: 1, textAlign: 'left' }}>
-            <span className="nazwa">{teamB.nazwa}</span>
+            <span className="nazwa" style={{ color: getColor(teamB) }}>{teamB.nazwa}</span>
           </div>
         ) : (
           phase === 1 ? (
@@ -257,7 +270,11 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamA = { nazwa, opis: match.teamA_opis };
+          // Add unitId for color
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamA_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamA = { nazwa, opis: match.teamA_opis, unitId };
           teamB = null;
         } else if (!match.teamA_id && match.teamB_id) {
           // Only teamB present, assign to teamA, teamB is empty (bye)
@@ -271,7 +288,10 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamA = { nazwa, opis: match.teamB_opis };
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamB_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamA = { nazwa, opis: match.teamB_opis, unitId };
           teamB = null;
         } else {
           // Both teams present or both missing
@@ -286,7 +306,10 @@ export default function FazaPucharowaPage() {
               }
               if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
             }
-            teamA = { nazwa, opis: match.teamA_opis };
+            let unitId = null;
+            const z = zastepy.find(z => z.id === match.teamA_id);
+            if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+            teamA = { nazwa, opis: match.teamA_opis, unitId };
           }
           if (match.teamB_id) {
             let nazwa = match.teamB_name || "";
@@ -299,7 +322,10 @@ export default function FazaPucharowaPage() {
               }
               if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
             }
-            teamB = { nazwa };
+            let unitId = null;
+            const z = zastepy.find(z => z.id === match.teamB_id);
+            if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+            teamB = { nazwa, unitId };
           }
         }
       } else {
@@ -315,7 +341,10 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamA = { nazwa, opis: match.teamA_opis };
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamA_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamA = { nazwa, opis: match.teamA_opis, unitId };
         }
         if (match.teamB_id) {
           let nazwa = match.teamB_name || "";
@@ -328,7 +357,10 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamB = { nazwa };
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamB_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamB = { nazwa, unitId };
         }
       }
       // For later phases, propagate suffix if needed
@@ -355,8 +387,10 @@ export default function FazaPucharowaPage() {
           }
           if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
         }
-        teamA = prev1 ? { nazwa: teamAName } : teamA;
-        teamB = prev2 ? { nazwa: teamBName } : teamB;
+        let unitIdA = prev1 && prev1.id ? (zastepy.find(z => z.id === prev1.id)?.jednostka?.[0]?.id) : null;
+        let unitIdB = prev2 && prev2.id ? (zastepy.find(z => z.id === prev2.id)?.jednostka?.[0]?.id) : null;
+        teamA = prev1 ? { nazwa: teamAName, unitId: unitIdA } : teamA;
+        teamB = prev2 ? { nazwa: teamBName, unitId: unitIdB } : teamB;
       }
       left.push({ ...match, teamA, teamB });
     }
@@ -378,7 +412,10 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamA = { nazwa, opis: match.teamA_opis };
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamA_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamA = { nazwa, opis: match.teamA_opis, unitId };
         }
         if (match.teamB_id) {
           let nazwa = match.teamB_name || "";
@@ -391,7 +428,10 @@ export default function FazaPucharowaPage() {
             }
             if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
           }
-          teamB = { nazwa };
+          let unitId = null;
+          const z = zastepy.find(z => z.id === match.teamB_id);
+          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+          teamB = { nazwa, unitId };
         }
       } else if (prevRightWinners) {
         const prev1 = prevRightWinners[(j - Math.ceil(r.length / 2)) * 2] || null;
@@ -416,8 +456,10 @@ export default function FazaPucharowaPage() {
           }
           if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
         }
-        teamA = prev1 ? { nazwa: teamAName } : null;
-        teamB = prev2 ? { nazwa: teamBName } : null;
+        let unitIdA = prev1 && prev1.id ? (zastepy.find(z => z.id === prev1.id)?.jednostka?.[0]?.id) : null;
+        let unitIdB = prev2 && prev2.id ? (zastepy.find(z => z.id === prev2.id)?.jednostka?.[0]?.id) : null;
+        teamA = prev1 ? { nazwa: teamAName, unitId: unitIdA } : null;
+        teamB = prev2 ? { nazwa: teamBName, unitId: unitIdB } : null;
       }
       right.push({ ...match, teamA, teamB });
     }
@@ -444,7 +486,9 @@ export default function FazaPucharowaPage() {
       const teamName = unit?.fullName;
       if (teamName && !teamBName.includes(' - ' + teamName)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamName;
     }
-    finalMatch = { ...match, teamA: teamA ? { nazwa: teamAName } : null, teamB: teamB ? { nazwa: teamBName } : null };
+    let unitIdA = teamA && teamA.id ? (zastepy.find(z => z.id === teamA.id)?.jednostka?.[0]?.id) : null;
+    let unitIdB = teamB && teamB.id ? (zastepy.find(z => z.id === teamB.id)?.jednostka?.[0]?.id) : null;
+    finalMatch = { ...match, teamA: teamA ? { nazwa: teamAName, unitId: unitIdA } : null, teamB: teamB ? { nazwa: teamBName, unitId: unitIdB } : null };
   }
 
   // Calculate positions for left, right, and center
