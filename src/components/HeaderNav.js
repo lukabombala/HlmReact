@@ -24,6 +24,7 @@ import ytLogo from "../images/youtube_logov2.png";
 function HeaderNav() {
   const [expanded, setExpanded] = useState(false);
   const [showCup, setShowCup] = useState(false);
+  const [cupVisibility, setCupVisibility] = useState("admin");
   const [showLogin, setShowLogin] = useState(false);
 
   const { user, loginWithGoogle, logout } = useAuth();
@@ -41,9 +42,13 @@ function HeaderNav() {
   useEffect(() => {
     configAll().then(configs => {
       const cupConfig = configs.find(c => c.id === "zzzzzzzzzzzzzzzzzzzy");
-      setShowCup(!!(cupConfig && cupConfig.settingsToggle === true));
+      if (cupConfig && cupConfig.settingsVisibility) {
+        setCupVisibility(cupConfig.settingsVisibility);
+      } else {
+        setCupVisibility("admin");
+      }
     });
-  }, []);
+  }, [user]);
 
   // Funkcje obsługi
   async function checkPrivacyPassword(pass) {
@@ -92,13 +97,35 @@ function HeaderNav() {
     refreshPrivacyView(); // odśwież widok
   }
 
+  // Determine if faza pucharowa should be visible
+  // Use userWeb.admin (from usersWeb collection) for admin check
+  const [userWeb, setUserWeb] = useState(null);
+  useEffect(() => {
+    if (!user || !user.email) {
+      setUserWeb(null);
+      return;
+    }
+    const db = getFirestore(app);
+    getDoc(doc(db, "usersWeb", user.uid)).then(snap => {
+      if (snap.exists()) {
+        setUserWeb(snap.data());
+      } else {
+        setUserWeb(null);
+      }
+    });
+  }, [user]);
+
+  const canShowCup =
+    cupVisibility === "wszyscy" ||
+    (cupVisibility === "admin" && userWeb && userWeb.admin === true);
+
   const navItems = [
     { name: "Aktualności", icon: Calendar, to: "/" },
     { name: "Wyniki", icon: BarChart3, to: "/wyniki" },
     { name: "Zastępy", icon: Users, to: "/zastepy" },
     { name: "Archiwum", icon: Box, to: "/archiwum" },
     { name: "Regulamin", icon: Newspaper, to: "/regulamin" },
-    ...(showCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
+    ...(canShowCup ? [{ name: "Faza pucharowa", icon: Trophy, to: "/fazapucharowa" }] : []),
   ];
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 600);

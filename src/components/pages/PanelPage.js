@@ -104,26 +104,31 @@ export default function PanelPage() {
         }
     // --- DRABINKA TOGGLE ---
     const [cupToggleLoading, setCupToggleLoading] = useState(false);
-    const [cupToggleValue, setCupToggleValue] = useState(undefined);
+    const [cupToggleValue, setCupToggleValue] = useState("admin"); // "wszyscy", "admin", "none"
     const [cupToggleError, setCupToggleError] = useState("");
+    const [showCupPublicConfirm, setShowCupPublicConfirm] = useState(false);
 
     // Load current value from Firestore
     useEffect(() => {
       const db = getFirestore();
       getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy")).then(snap => {
         if (snap.exists()) {
-          setCupToggleValue(!!snap.data().settingsToggle);
+          setCupToggleValue(snap.data().settingsVisibility || "admin");
         }
       });
     }, []);
 
     // Handler to update Firestore
     async function handleCupToggleChange(val) {
+      if (val === "wszyscy") {
+        setShowCupPublicConfirm(true);
+        return;
+      }
       setCupToggleLoading(true);
       setCupToggleError("");
       try {
         const db = getFirestore();
-        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsToggle: val });
+        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsVisibility: val });
         setCupToggleValue(val);
       } catch (e) {
         setCupToggleError("Błąd zapisu ustawienia: " + (e.message || e));
@@ -131,23 +136,41 @@ export default function PanelPage() {
         setCupToggleLoading(false);
       }
     }
+    async function handleCupPublicConfirm() {
+      setShowCupPublicConfirm(false);
+      setCupToggleLoading(true);
+      setCupToggleError("");
+      try {
+        const db = getFirestore();
+        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsVisibility: "wszyscy" });
+        setCupToggleValue("wszyscy");
+      } catch (e) {
+        setCupToggleError("Błąd zapisu ustawienia: " + (e.message || e));
+      } finally {
+        setCupToggleLoading(false);
+      }
+    }
     // --- ADMIN: DRABINKA TOGGLE UI ---
-    // Render toggle in Administracja section above "Dodaj nową drabinkę" using Form.Check switch style
+    // Render select in Administracja section above "Dodaj nową drabinkę"
     function renderCupToggle() {
       if (!userWeb?.admin) return null;
       return (
         <div style={{ marginBottom: 20 }}>
           <Form>
-            <Form.Check
-              type="switch"
-              id="cup-toggle-switch"
-              label="Wyświetlaj fazę pucharową (drabinkę)"
-              checked={!!cupToggleValue}
-              disabled={cupToggleLoading}
-              onChange={e => handleCupToggleChange(e.target.checked)}
-              style={{ fontWeight: 500, fontSize: "1.1rem" }}
-            />
-            {cupToggleError && <div className="text-danger mt-1">{cupToggleError}</div>}
+            <Form.Group className="mb-3">
+              <Form.Label style={{ fontWeight: 700, fontSize: "1.1rem" }}>Wyświetlanie fazy pucharowej</Form.Label>
+              <Form.Select
+                value={cupToggleValue}
+                onChange={e => handleCupToggleChange(e.target.value)}
+                disabled={cupToggleLoading}
+                style={{ fontWeight: 500, fontSize: "1.1rem", maxWidth: 340 }}
+              >
+                <option value="wszyscy">Wszyscy użytkownicy</option>
+                <option value="admin">Tylko admini</option>
+                <option value="none">Nie wyświetlaj</option>
+              </Form.Select>
+              {cupToggleError && <div className="text-danger mt-1">{cupToggleError}</div>}
+            </Form.Group>
             <Form.Group className="mt-3">
               <Form.Label>Obecnie trwająca faza drabinki</Form.Label>
               <Form.Select value={currentPhase} onChange={handlePhaseChange} disabled={phaseLoading} style={{ fontWeight: 500, fontSize: "1.1rem", maxWidth: 300 }}>
@@ -158,6 +181,24 @@ export default function PanelPage() {
               {phaseError && <div className="text-danger mt-1">{phaseError}</div>}
             </Form.Group>
           </Form>
+          <Modal show={showCupPublicConfirm} onHide={() => setShowCupPublicConfirm(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Potwierdź upublicznienie drabinki</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Alert variant="warning">
+                <b>Uwaga!</b> Wybranie tej opcji spowoduje, że strona fazy pucharowej będzie publicznie dostępna w internecie dla wszystkich użytkowników. Czy na pewno chcesz kontynuować?
+              </Alert>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowCupPublicConfirm(false)}>
+                Anuluj
+              </Button>
+              <Button variant="danger" onClick={handleCupPublicConfirm} disabled={cupToggleLoading}>
+                Tak, udostępnij publicznie
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       );
     }
