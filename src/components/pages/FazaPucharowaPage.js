@@ -363,34 +363,40 @@ export default function FazaPucharowaPage() {
           teamB = { nazwa, unitId };
         }
       }
-      // For later phases, propagate suffix if needed
+      // For later phases, only show teamA/teamB if match.teamA_id/match.teamB_id are set
       if (i > 0 && prevLeftWinners) {
-        const prev1 = prevLeftWinners[j * 2] || null;
-        const prev2 = prevLeftWinners[j * 2 + 1] || null;
-        let teamAName = prev1 && prev1.nazwa ? prev1.nazwa : "";
-        let teamBName = prev2 && prev2.nazwa ? prev2.nazwa : "";
-        if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && prev1 && prev1.id) {
-          const unit = teamIdToUnit[prev1.id];
-          let teamNumber = '';
-          if (unit?.shortName) {
-            const match = unit.shortName.match(/^(\d+)/);
-            if (match) teamNumber = match[1];
+        let teamAName = "", teamBName = "";
+        let unitIdA = null, unitIdB = null;
+        if (match.teamA_id) {
+          const prev1 = prevLeftWinners[j * 2] || null;
+          teamAName = prev1 && prev1.nazwa ? prev1.nazwa : "";
+          if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && prev1 && prev1.id) {
+            const unit = teamIdToUnit[prev1.id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const m = unit.shortName.match(/^(\d+)/);
+              if (m) teamNumber = m[1];
+            }
+            if (teamNumber && !teamAName.includes(' - ' + teamNumber)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamNumber;
           }
-          if (teamNumber && !teamAName.includes(' - ' + teamNumber)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamNumber;
+          unitIdA = prev1 && prev1.id ? (zastepy.find(z => z.id === prev1.id)?.jednostka?.[0]?.id) : null;
+          teamA = { nazwa: teamAName, unitId: unitIdA };
         }
-        if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && prev2 && prev2.id) {
-          const unit = teamIdToUnit[prev2.id];
-          let teamNumber = '';
-          if (unit?.shortName) {
-            const match = unit.shortName.match(/^(\d+)/);
-            if (match) teamNumber = match[1];
+        if (match.teamB_id) {
+          const prev2 = prevLeftWinners[j * 2 + 1] || null;
+          teamBName = prev2 && prev2.nazwa ? prev2.nazwa : "";
+          if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && prev2 && prev2.id) {
+            const unit = teamIdToUnit[prev2.id];
+            let teamNumber = '';
+            if (unit?.shortName) {
+              const m = unit.shortName.match(/^(\d+)/);
+              if (m) teamNumber = m[1];
+            }
+            if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
           }
-          if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
+          unitIdB = prev2 && prev2.id ? (zastepy.find(z => z.id === prev2.id)?.jednostka?.[0]?.id) : null;
+          teamB = { nazwa: teamBName, unitId: unitIdB };
         }
-        let unitIdA = prev1 && prev1.id ? (zastepy.find(z => z.id === prev1.id)?.jednostka?.[0]?.id) : null;
-        let unitIdB = prev2 && prev2.id ? (zastepy.find(z => z.id === prev2.id)?.jednostka?.[0]?.id) : null;
-        teamA = prev1 ? { nazwa: teamAName, unitId: unitIdA } : teamA;
-        teamB = prev2 ? { nazwa: teamBName, unitId: unitIdB } : teamB;
       }
       left.push({ ...match, teamA, teamB });
     }

@@ -16,11 +16,8 @@ export function generateTournament(teams) {
   // Sort by points descending
   const sorted = [...teams].sort((a, b) => b.points - a.points);
   const slots = 32;
-  const byes = slots - sorted.length;
-  // Place teams in bracket by seeding order, leave byes as null
   const seedingOrder = getSeedingOrder32();
   const bracket = Array(slots).fill(null);
-  // Assign each team to a unique slot, leave remaining slots as null (bye)
   for (let i = 0; i < Math.min(sorted.length, seedingOrder.length); i++) {
     bracket[seedingOrder[i] - 1] = {
       ...sorted[i],
@@ -47,7 +44,7 @@ export function generateTournament(teams) {
   // Helper to create matchId
   const matchId = (phase, idx) => `${phase}_${idx + 1}`;
 
-  // Build all matches for all phases
+  // Build only phase 1 matches, and empty placeholders for later phases
   const allMatches = [];
   let prevPhaseMatches = [];
 
@@ -82,29 +79,31 @@ export function generateTournament(teams) {
     prevPhaseMatches.push(match);
   }
 
-  // Phases 2-5
+  // For phase 2: pre-fill byes (winners from phase 1 with only one team)
   let phase = 2;
-  let matchesInPhase = prevPhaseMatches.length / 2;
+  let matchesInPhase = Math.floor(prevPhaseMatches.length / 2);
+  let prevWinners = prevPhaseMatches.map(m => {
+    if (m.teamA_id && !m.teamB_id) {
+      return { id: m.teamA_id, name: m.teamA_name };
+    } else if (!m.teamA_id && m.teamB_id) {
+      return { id: m.teamB_id, name: m.teamB_name };
+    }
+    return null;
+  });
   while (matchesInPhase >= 1) {
-    const thisPhase = [];
     for (let i = 0; i < matchesInPhase; i++) {
-      // Determine teams for this match from previous phase
-      let prevA = prevPhaseMatches[i * 2];
-      let prevB = prevPhaseMatches[i * 2 + 1];
-      let teamA_id = prevA?.winnerId || prevA?.teamA_id || null;
-      let teamB_id = prevB?.winnerId || prevB?.teamA_id || null;
-      let teamA_name = prevA?.teamA_name || null;
-      let teamB_name = prevB?.teamA_name || null;
-      // If only one team is present, always assign to teamA and set teamB to null
-      if (teamA_id && !teamB_id) {
-        // teamA is present, teamB is null
-        // nothing to change
-      } else if (!teamA_id && teamB_id) {
-        // only teamB is present, move to teamA
-        teamA_id = teamB_id;
-        teamA_name = teamB_name;
-        teamB_id = null;
-        teamB_name = null;
+      let teamA_id = null, teamA_name = null, teamB_id = null, teamB_name = null;
+      if (phase === 2) {
+        const prev1 = prevWinners[i * 2];
+        const prev2 = prevWinners[i * 2 + 1];
+        // Only advance a bye if exactly one predecessor is a bye
+        if (prev1 && !prev2) {
+          teamA_id = prev1.id;
+          teamA_name = prev1.name;
+        } else if (!prev1 && prev2) {
+          teamA_id = prev2.id;
+          teamA_name = prev2.name;
+        } // if both are null or both are present, leave both slots empty
       }
       const match = {
         matchId: matchId(phase, i),
@@ -120,11 +119,10 @@ export function generateTournament(teams) {
         nextMatchId: matchesInPhase > 1 ? matchId(phase + 1, Math.floor(i / 2)) : null
       };
       allMatches.push(match);
-      thisPhase.push(match);
     }
-    prevPhaseMatches = thisPhase;
-    matchesInPhase = matchesInPhase / 2;
+    matchesInPhase = Math.floor(matchesInPhase / 2);
     phase++;
+    prevWinners = Array(matchesInPhase).fill(null); // Only phase 2 needs pre-filling
   }
 
   return allMatches;
