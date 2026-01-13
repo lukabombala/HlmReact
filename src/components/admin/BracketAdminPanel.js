@@ -163,7 +163,7 @@ export default function BracketAdminPanel({ onBracketCreated }) {
 
   function getTeamName(id) {
     const t = teams.find(t => t.teamId === id);
-    return t ? `${t.name} - ${t.team}` : id;
+    return t ? t.name : id;
   }
 
   async function handleCreateBracket() {
@@ -199,7 +199,7 @@ export default function BracketAdminPanel({ onBracketCreated }) {
               ...m,
               teamA_id: sel.teamA_id || null,
               teamB_id: null,
-              teamA_name: getTeamName(sel.teamA_id) || null,
+              teamA_name: teams.find(t => t.teamId === sel.teamA_id)?.name || null,
               teamB_name: null
             };
           } else {
