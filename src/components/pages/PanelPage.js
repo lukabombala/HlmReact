@@ -2,12 +2,14 @@ import { React, useState, useMemo, useEffect } from "react";
 import {
   Card, Button, Form, Row, Col, Table, Badge, Modal, Container, Collapse, Alert, Spinner, Pagination
 } from "react-bootstrap";
-import { Settings, Trophy, Users, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import { Shield, Award, Clock, Settings, Trophy, Users, Minus, Plus, Filter, ChevronDown, ChevronUp, FileText, AlertTriangle, Edit2, Edit, Trash2, Info } from "lucide-react";
+import BracketAdminPanel from "../admin/BracketAdminPanel";
+import AdminMatchManager from "../admin/AdminMatchManager";
 import { jednostkiListAll } from "../../services/jednostkiList.mjs";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
 import { useAuth } from "../../AuthContext";
-import { getFirestore, collection, query, where, getDocs, doc, updateDoc , getDoc, setDoc} from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { app } from "../../firebaseConfig";
 import "./PanelPage.css";
 
@@ -20,12 +22,20 @@ import { addPunktacjaEntry } from "../../services/addPunktacjaEntry";
 
 const VAPID_KEY = "BJEDKEq906Kcu6wrniH5ct2lCxQiFueGKZ5DAAqTwKBsdEEBU2OOLn0FwANsqsKgfz5R1yJcFQibQ1Wk-2kpNxk"; 
 
-// Sidebar navigation items
 const NAV = [
-  { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
-  { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
-  { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, 
-];
+    { key: "team", label: "Moja drużyna", icon: <Users size={18} className="me-2" /> },
+    { key: "history", label: "Historia wpisów", icon: <FileText size={18} className="me-2" /> },
+    // { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> }, // <- usuń z tej pozycji
+  ];
+
+  // Dodaj sekcję Audyt dla audytora
+  const NAV_AUDIT = { key: "audit", label: "Audyt punktacji", icon: <AlertTriangle size={18} className="me-2" /> };
+
+  // Dodaj nową pozycję do menu tylko dla adminów
+  const NAV_ADMIN = { key: "admin", label: "Administracja", icon: <Shield size={18} className="me-2" /> };
+
+  // Dodaj ustawienia jako ostatni element
+  const NAV_SETTINGS = { key: "settings", label: "Ustawienia", icon: <Settings size={18} className="me-2" /> };
 
 // Pomocnicza funkcja do formatu miesiąca
 function getMonthLabelFromKey(key) {
@@ -59,8 +69,140 @@ const darkTextStyle = {
 };
 
 export default function PanelPage() {
+        // --- BRACKET CURRENT PHASE ---
+        const [currentPhase, setCurrentPhase] = useState('Runda 1');
+        const [phaseLoading, setPhaseLoading] = useState(false);
+        const [phaseError, setPhaseError] = useState("");
+        const phaseOptions = [
+          'Runda 1',
+          'Runda 2',
+          'Ćwierćfinały',
+          'Półfinały',
+          'Finał'
+        ];
+        useEffect(() => {
+          const db = getFirestore();
+          getDoc(doc(db, "config", "currentPhase")).then(snap => {
+            if (snap.exists()) {
+              setCurrentPhase(snap.data().phase || 'Runda 1');
+            }
+          });
+        }, []);
+        async function handlePhaseChange(e) {
+          const val = e.target.value;
+          setPhaseLoading(true);
+          setPhaseError("");
+          try {
+            const db = getFirestore();
+            await setDoc(doc(db, "config", "currentPhase"), { phase: val });
+            setCurrentPhase(val);
+          } catch (err) {
+            setPhaseError("Błąd zapisu fazy: " + (err.message || err));
+          } finally {
+            setPhaseLoading(false);
+          }
+        }
+    // --- DRABINKA TOGGLE ---
+    const [cupToggleLoading, setCupToggleLoading] = useState(false);
+    const [cupToggleValue, setCupToggleValue] = useState("admin"); // "wszyscy", "admin", "none"
+    const [cupToggleError, setCupToggleError] = useState("");
+    const [showCupPublicConfirm, setShowCupPublicConfirm] = useState(false);
+
+    // Load current value from Firestore
+    useEffect(() => {
+      const db = getFirestore();
+      getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy")).then(snap => {
+        if (snap.exists()) {
+          setCupToggleValue(snap.data().settingsVisibility || "admin");
+        }
+      });
+    }, []);
+
+    // Handler to update Firestore
+    async function handleCupToggleChange(val) {
+      if (val === "wszyscy") {
+        setShowCupPublicConfirm(true);
+        return;
+      }
+      setCupToggleLoading(true);
+      setCupToggleError("");
+      try {
+        const db = getFirestore();
+        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsVisibility: val });
+        setCupToggleValue(val);
+      } catch (e) {
+        setCupToggleError("Błąd zapisu ustawienia: " + (e.message || e));
+      } finally {
+        setCupToggleLoading(false);
+      }
+    }
+    async function handleCupPublicConfirm() {
+      setShowCupPublicConfirm(false);
+      setCupToggleLoading(true);
+      setCupToggleError("");
+      try {
+        const db = getFirestore();
+        await updateDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzy"), { settingsVisibility: "wszyscy" });
+        setCupToggleValue("wszyscy");
+      } catch (e) {
+        setCupToggleError("Błąd zapisu ustawienia: " + (e.message || e));
+      } finally {
+        setCupToggleLoading(false);
+      }
+    }
+    // --- ADMIN: DRABINKA TOGGLE UI ---
+    // Render select in Administracja section above "Dodaj nową drabinkę"
+    function renderCupToggle() {
+      if (!userWeb?.admin) return null;
+      return (
+        <div style={{ marginBottom: 20 }}>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label style={{ fontWeight: 700, fontSize: "1.1rem" }}>Wyświetlanie fazy pucharowej</Form.Label>
+              <Form.Select
+                value={cupToggleValue}
+                onChange={e => handleCupToggleChange(e.target.value)}
+                disabled={cupToggleLoading}
+                style={{ fontWeight: 500, fontSize: "1.1rem", maxWidth: 340 }}
+              >
+                <option value="wszyscy">Wszyscy użytkownicy</option>
+                <option value="admin">Tylko admini</option>
+                <option value="none">Nie wyświetlaj</option>
+              </Form.Select>
+              {cupToggleError && <div className="text-danger mt-1">{cupToggleError}</div>}
+            </Form.Group>
+            <Form.Group className="mt-3">
+              <Form.Label>Obecnie trwająca faza drabinki</Form.Label>
+              <Form.Select value={currentPhase} onChange={handlePhaseChange} disabled={phaseLoading} style={{ fontWeight: 500, fontSize: "1.1rem", maxWidth: 300 }}>
+                {phaseOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </Form.Select>
+              {phaseError && <div className="text-danger mt-1">{phaseError}</div>}
+            </Form.Group>
+          </Form>
+          <Modal show={showCupPublicConfirm} onHide={() => setShowCupPublicConfirm(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Potwierdź upublicznienie drabinki</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Alert variant="warning">
+                <b>Uwaga!</b> Wybranie tej opcji spowoduje, że strona fazy pucharowej będzie publicznie dostępna w internecie dla wszystkich użytkowników. Czy na pewno chcesz kontynuować?
+              </Alert>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowCupPublicConfirm(false)}>
+                Anuluj
+              </Button>
+              <Button variant="danger" onClick={handleCupPublicConfirm} disabled={cupToggleLoading}>
+                Tak, udostępnij publicznie
+              </Button>
+            </Modal.Footer>
+          </Modal>
+        </div>
+      );
+    }
   const [tab, setTab] = useState("team");
-  const [showAddModal, setShowAddModal] = useState(false);
   const [addScoutId, setAddScoutId] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editRequest, setEditRequest] = useState("");
@@ -96,6 +238,199 @@ export default function PanelPage() {
   const [editPoints, setEditPoints] = useState("");
   const [editMonth, setEditMonth] = useState("");
   const [editNotes, setEditNotes] = useState("");
+  const [configSettings, setConfigSettings] = useState(null);
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [infoModalText, setInfoModalText] = useState("");
+  const [infoModalVersion, setInfoModalVersion] = useState("");
+  const [infoModalToggle, setInfoModalToggle] = useState(false);
+  
+    // Bulk selection / bulk actions for history
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState(new Set());
+  const [selectAllPage, setSelectAllPage] = useState(false);
+  const [showBulkEditModal, setShowBulkEditModal] = useState(false);
+  const [bulkEditMonth, setBulkEditMonth] = useState("");
+  const [bulkEditNotes, setBulkEditNotes] = useState("");
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+
+   // Ustawienie: wyświetlaj przyciski akcji masowych w historii (domyślnie wyłączone)
+ const [enableBulkActionsInHistory, setEnableBulkActionsInHistory] = useState(() => {
+    const stored = localStorage.getItem("enableBulkActionsInHistory");
+    return stored === "true" ? true : false;
+  });
+  function handleEnableBulkActionsToggle(val) {
+    setEnableBulkActionsInHistory(val);
+    localStorage.setItem("enableBulkActionsInHistory", val ? "true" : "false");
+    if (!val) {
+      // wyczyść zaznaczenia gdy wyłączone
+      setSelectedHistoryIds(new Set());
+      setSelectAllPage(false);
+    }
+  }
+
+  function toggleSelectHistory(id) {
+    setSelectedHistoryIds(prev => {
+      const s = new Set(prev);
+      if (s.has(id)) s.delete(id); else s.add(id);
+      return s;
+    });
+  }
+
+  function handleSelectAllVisible(visibleIds) {
+    setSelectedHistoryIds(prev => {
+      const s = new Set(prev);
+      const allSelected = visibleIds.every(id => s.has(id));
+      if (allSelected) {
+        // unselect visible
+        visibleIds.forEach(id => s.delete(id));
+        setSelectAllPage(false);
+      } else {
+        // select visible
+        visibleIds.forEach(id => s.add(id));
+        setSelectAllPage(true);
+      }
+      return s;
+    });
+  }
+
+  async function handleBulkDeleteConfirm() {
+    if (selectedHistoryIds.size === 0) return;
+    if (!window.confirm(`Usunąć ${selectedHistoryIds.size} zaznaczonych wpisów? Ta operacja jest nieodwracalna.`)) return;
+    setBulkActionLoading(true);
+    try {
+      const ids = Array.from(selectedHistoryIds);
+      await Promise.all(ids.map(id => deleteDoc(doc(db, "Punktacja", id))));
+      toast.success(`Usunięto ${ids.length} wpisów.`);
+      setSelectedHistoryIds(new Set());
+      // odśwież dane
+      setPunktacjeLoading(true);
+      const data = await punktacjaListAll();
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    } catch (err) {
+      console.error("Błąd kasowania wielu wpisów:", err);
+      alert("Błąd kasowania wpisów: " + err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
+  async function handleBulkEditSubmit(e) {
+    e.preventDefault();
+    if (selectedHistoryIds.size === 0) return;
+    setBulkActionLoading(true);
+    try {
+      const updates = {};
+      if (bulkEditMonth) updates.miesiac = bulkEditMonth;
+      if (bulkEditNotes) updates.scoreInfo = bulkEditNotes;
+
+      const ids = Array.from(selectedHistoryIds);
+      await Promise.all(ids.map(id => updateDoc(doc(db, "Punktacja", id), updates)));
+      toast.success(`Zaktualizowano ${ids.length} wpisów.`);
+      setSelectedHistoryIds(new Set());
+      setShowBulkEditModal(false);
+      setBulkEditMonth("");
+      setBulkEditNotes("");
+      // odśwież dane
+      setPunktacjeLoading(true);
+      const data = await punktacjaListAll();
+      setPunktacje(data);
+      setPunktacjeLoading(false);
+    } catch (err) {
+      console.error("Błąd masowej edycji:", err);
+      alert("Błąd masowej edycji: " + err.message);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  }
+
+  // Pobierz dane z config (id: zzzzzzzzzzzzzzzzzzzt)
+  useEffect(() => {
+    const db = getFirestore(app);
+    getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzt")).then(snap => {
+      if (snap.exists()) {
+        const { settingsText, settingsValue, settingsToggle} = snap.data();
+        setInfoModalText(settingsText || "");
+        setInfoModalVersion(settingsValue || "");
+        setInfoModalToggle(settingsToggle);
+        // Sprawdź w localStorage czy modal był ukryty dla tej wersji
+        const hiddenVersion = localStorage.getItem("panelInfoModalHiddenVersion");
+        if (settingsValue && hiddenVersion !== settingsValue) {
+          setShowInfoModal(true);
+        }
+      }
+    });
+  }, []);
+
+  // Funkcja obsługi "Nie pokazuj więcej"
+  function handleHideInfoModal() {
+    localStorage.setItem("panelInfoModalHiddenVersion", infoModalVersion);
+    setShowInfoModal(false);
+  }
+  // Dodaj stan do obsługi obecności harcerzy w modalu zbiórki
+  const [meetingPresence, setMeetingPresence] = useState([]);
+
+  // Funkcja do obsługi zaznaczania obecności
+  function handleMeetingPresenceChange(harcerzId) {
+    setMeetingPresence(prev => {
+      if (prev.includes(harcerzId)) {
+        return prev.filter(id => id !== harcerzId);
+      } else {
+        // Pozwól maksymalnie 7 harcerzy
+        if (prev.length >= 7) return prev;
+        return [...prev, harcerzId];
+      }
+    });
+  }
+
+  // Funkcja do obsługi wysłania formularza zbiórki
+  async function handleAddMeetingSubmit(e) {
+    e.preventDefault();
+    const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+    const meetingCat = scoringCategories.find(cat => cat.scoringKey === "obecnosc");
+    if (!selectedScoutTeam || !meetingCat) return;
+
+    try {
+      for (const harcerzId of meetingPresence) {
+        const harcerz = selectedScoutTeam.harcerze.find(h => h.id === harcerzId);
+        await addPunktacjaEntry({
+          selectedCategory: meetingCat,
+          selectedScoutTeam,
+          points: 1,
+          month: addMonth,
+          userEmail: user.email,
+          notes: addNotes,
+          selectedScoutPerson: harcerz,
+        });
+      }
+      setShowAddMeetingModal(false);
+      setMeetingPresence([]);
+      setAddMonth("");
+      setAddNotes("");
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+      toast.success("Dodano obecność na zbiórce!");
+    } catch (err) {
+      alert("Błąd dodawania obecności: " + err.message);
+      console.error("Błąd dodawania obecności:", err);
+    }
+  }
+
+  // Dodaj funkcję do resetowania formularza zbiórki
+  function resetMeetingForm() {
+    setMeetingPresence([]);
+    setAddMonth("");
+    setAddNotes("");
+  }
+
+  // Dodaj stany dla osobnych modali:
+  const [showAddTypeModal, setShowAddTypeModal] = useState(false);
+  const [showAddTripModal, setShowAddTripModal] = useState(false);
+  const [showAddMeetingModal, setShowAddMeetingModal] = useState(false);
+  const [showAddCeremonyModal, setShowAddCeremonyModal] = useState(false);
+  const [showAddSingleModal, setShowAddSingleModal] = useState(false);
 
   // Formularz wnioskowania o dostęp
   const [requestUnitId, setRequestUnitId] = useState("");
@@ -114,6 +449,109 @@ export default function PanelPage() {
   const auth = getAuth(app);
   const db = getFirestore(app);
 
+  // store how many entries to add per ceremony type (0..4)
+  const [ceremonyCounts, setCeremonyCounts] = useState({
+    proporzec: 0,
+    mundur: 0,
+    dodatkowa: 0,
+  });
+  const ceremonyMonth = addMonth;
+  const ceremonyNotes = addNotes;
+
+  function handleCeremonyCountChange(type, value) {
+    const v = Math.max(0, Math.min(6, Number(value) || 0));
+    setCeremonyCounts(prev => ({ ...prev, [type]: v }));
+  }
+
+  
+  // Funkcja obsługi dodania obrzędowości (bez przypisywania do pojedynczych harcerzy)
+  async function handleAddCeremonySubmit(e) {
+    e.preventDefault();
+    const selectedScoutTeam = zastepy.find(z => z.id === addScoutId);
+    const obrzedCat = scoringCategories.find(cat => cat.scoringKey === "ceremony" || cat.scoringKey === "obrzedowosc");
+    if (!selectedScoutTeam || !obrzedCat) return;
+
+    const types = [
+      { key: "proporzec", label: "Proporzec" },
+      { key: "mundur", label: "Oznaczenie na mundurze" },
+      { key: "dodatkowa", label: "Dodatkowa obrzędowość" },
+    ];
+
+    try {
+      for (const t of types) {
+        const count = ceremonyCounts[t.key] || 0;
+        if (count <= 0) continue;
+        // dodaj `count` wpisów przypisanych do zastępu (bez selectedScoutPerson)
+        for (let i = 0; i < count; i++) {
+          const notesWithType = `${ceremonyNotes || ""}${ceremonyNotes ? " — " : ""}${t.label}`;
+          await addPunktacjaEntry({
+            selectedCategory: obrzedCat,
+            selectedScoutTeam,
+            points: 1,
+            month: ceremonyMonth,
+            userEmail: user.email,
+            notes: notesWithType,
+            // selectedScoutPerson omitted on purpose
+          });
+        }
+      }
+
+      setShowAddCeremonyModal(false);
+      setCeremonyCounts({ proporzec: 0, mundur: 0, dodatkowa: 0 });
+      setAddMonth("");
+      setAddNotes("");
+      setPunktacjeLoading(true);
+      punktacjaListAll().then((data) => {
+        setPunktacje(data);
+        setPunktacjeLoading(false);
+      });
+      toast.success("Dodano obrzędowość!");
+    } catch (err) {
+      alert("Błąd dodawania obrzędowości: " + err.message);
+      console.error("Błąd dodawania obrzędowości:", err);
+    }
+  }
+
+    // Funkcja zamykająca modal obrzędowości i resetująca formularz
+  function handleCloseAddCeremonyModal() {
+    setShowAddCeremonyModal(false);
+    setCeremonyCounts({ proporzec: 0, mundur: 0, dodatkowa: 0 });
+    setAddMonth("");
+    setAddNotes("");
+  }
+
+  // Zmień funkcję otwierania modala dodawania punktów:
+  function handleOpenAddModal(scoutId) {
+    setAddScoutId(scoutId);
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+   // ustaw domyślny miesiąc jeśli użytkownik ma włączone auto-sugestie
+   setAddMonth(autoSuggestCurrentMonth ? getCurrentMonthKey() : "");
+    setAddNotes("");
+    if (advancedAddPoints) {
+      setShowAddTypeModal(true); // okno wyboru typu
+    } else {
+      setShowAddSingleModal(true); // od razu zwykły modal
+    }
+  }
+  
+  // Funkcja do obsługi kafelków
+  function handleAddType(type) {
+    setShowAddTypeModal(false);
+    // domyślny miesiąc przy otwieraniu konkretnego modalu
+    const defaultMonth = autoSuggestCurrentMonth ? getCurrentMonthKey() : "";
+    setAddMonth(defaultMonth);
+    if (type === "single") {
+      setShowAddSingleModal(true);
+    } else if (type === "trip") {
+      setShowAddTripModal(true);
+    } else if (type === "meeting") {
+      setShowAddMeetingModal(true);
+    } else if (type === "ceremony") {
+      setShowAddCeremonyModal(true);
+    }
+  }
   // Funckja do usuwania wpisu
   async function handleDeleteEntryConfirm() {
     if (!deleteEntryData?.id) return;
@@ -175,6 +613,51 @@ export default function PanelPage() {
     }
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    const db = getFirestore(app);
+    getDoc(doc(db, "config", "zzzzzzzzzzzzzzzzzzzv")).then(snap => {
+      if (snap.exists()) {
+        setConfigSettings(snap.data());
+      }
+    });
+  }, []);
+
+const deadlineDayOfMonth = configSettings?.settingsValue !== undefined
+  ? Number(configSettings.settingsValue)
+  : undefined;
+
+const flaggedEntries = useMemo(() => {
+  if (!punktacje || !Array.isArray(punktacje) || !deadlineDayOfMonth) return [];
+  return punktacje.filter(rec => {
+    if (!rec.miesiac || !rec.scoreAddDate) return false;
+    // rec.miesiac: np. "202510"
+    const year = parseInt(rec.miesiac.slice(0, 4), 10);
+    const month = parseInt(rec.miesiac.slice(4, 6), 10);
+    // Kolejny miesiąc
+    let nextMonth = month + 1;
+    let nextYear = year;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+    // Deadline: koniec settingsValue dnia kolejnego miesiąca
+    const deadlineDate = new Date(nextYear, nextMonth - 1, deadlineDayOfMonth, 23, 59, 59, 999);
+
+    // Data dodania wpisu
+    let addDate;
+    if (typeof rec.scoreAddDate === "object" && rec.scoreAddDate.seconds) {
+      addDate = new Date(rec.scoreAddDate.seconds * 1000);
+    } else if (typeof rec.scoreAddDate === "string") {
+      addDate = new Date(rec.scoreAddDate);
+    } else {
+      return false;
+    }
+
+    // Jeśli wpis dodano po deadline, oflaguj
+    return addDate > deadlineDate;
+  });
+}, [punktacje, deadlineDayOfMonth]);
 
   // Pobierz preferencję z Firestore (np. w useEffect po zalogowaniu)
   useEffect(() => {
@@ -261,6 +744,15 @@ async function handleNotificationToggle(checked) {
       setSelectedTeam(userWeb.jednostka[0].id);
     }
   }, [userWeb, teams]);
+
+  // Dodaj do menu Audyt jeśli użytkownik ma uprawnienia audytora
+  const navItems = useMemo(() => {
+    let items = [...NAV];
+    if (userWeb && userWeb.auditor === true) items.push(NAV_AUDIT);
+    if (userWeb && userWeb.admin === true) items.push(NAV_ADMIN);
+    items.push(NAV_SETTINGS); // ustawienia zawsze na końcu
+    return items;
+  }, [userWeb]);
 
   useEffect(() => {
     if (!user || !user.email) {
@@ -398,16 +890,6 @@ async function handleNotificationToggle(checked) {
     setEditSent(true);
   }
 
-  function handleOpenAddModal(scoutId) {
-    setAddScoutId(scoutId);
-    setAddCategoryId("");         // resetuj kategorię
-    setAddScoutPersonId("");      // resetuj harcerza
-    setAddPoints("");             // resetuj punkty
-    setAddMonth("");              // resetuj miesiąc
-    setAddNotes("");              // resetuj uwagi
-    setShowAddModal(true);
-  }
-
  async function handleAddPointsSubmit(e) {
   e.preventDefault();
   const selectedCategory = scoringCategories.find(cat => cat.id === addCategoryId);
@@ -434,7 +916,7 @@ async function handleNotificationToggle(checked) {
       selectedScoutPerson, 
     });
 
-    setShowAddModal(false);
+    setShowAddSingleModal(false);
 
     setAddCategoryId("");
     setAddScoutPersonId("");
@@ -489,6 +971,48 @@ async function handleNotificationToggle(checked) {
 
   // Liczba wpisów punktacji
   const totalActivities = teamPunktacje.length;
+
+    // Dodaj stan dla ustawienia zaawansowanego okna dodawania punktów
+  const [advancedAddPoints, setAdvancedAddPoints] = useState(() => {
+    const stored = localStorage.getItem("advancedAddPoints");
+    return stored === null ? false : stored === "true";
+  });
+
+  
+  // Obsługa zmiany toggle i zapis do localStorage
+  function handleAdvancedAddPointsToggle(val) {
+    setAdvancedAddPoints(val);
+    localStorage.setItem("advancedAddPoints", val ? "true" : "false");
+  }
+
+  // Nowe ustawienie: automatycznie proponuj obecny miesiąc przy dodawaniu punktacji
+  const [autoSuggestCurrentMonth, setAutoSuggestCurrentMonth] = useState(() => {
+    const stored = localStorage.getItem("autoSuggestCurrentMonth");
+    // domyślnie false (wyłączone) jeśli brak ustawienia
+    return stored === null ? false : stored === "true";
+  });
+
+  function handleAutoSuggestToggle(val) {
+    setAutoSuggestCurrentMonth(val);
+    localStorage.setItem("autoSuggestCurrentMonth", val ? "true" : "false");
+  }
+
+  function getCurrentMonthKey() {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${year}${month}`;
+  }
+
+  // Reset formularzy dodawania (wywoływane przy zamknięciu modalów add)
+  function resetAddForm() {
+    setAddCategoryId("");
+    setAddScoutPersonId("");
+    setAddPoints("");
+    setAddMonth("");
+    setAddNotes("");
+    // nie ruszamy punktacji/edytowanych danych (te są inne stany)
+  }
 
   // Zastępy z sumą punktów i wpisów
   const teamScouts = useMemo(() => {
@@ -785,7 +1309,7 @@ async function handleNotificationToggle(checked) {
             <div className="fw-bold fs-5 mb-2" style={{ letterSpacing: 1 }}>Panel</div>
           </div>
           <nav className="flex-grow-1">
-            {NAV.map((item) => (
+            {navItems.map((item) => (
               <Button
                 key={item.key}
                 variant={tab === item.key ? "primary" : "light"}
@@ -809,50 +1333,78 @@ async function handleNotificationToggle(checked) {
       </aside>
 
       {/* Top nav for mobile */}
-      <nav
-      className="d-flex d-md-none justify-content-around align-items-stretch"
-      style={{
-        position: "fixed",
-        top: 72,
-        left: 0,
-        right: 0,
-        height: 54,
-        background: darkMode ? "#232326" : "#fff",
-        borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
-        zIndex: 100,
-        color: darkMode ? "#e5e7eb" : undefined,
-      }}
-    >
-      {NAV.map((item) => (
-        <Button
-          key={item.key}
-          variant={tab === item.key ? "primary" : "light"}
-          className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+         <nav
+          className="d-flex d-md-none justify-content-start align-items-stretch"
           style={{
-            border: "none",
-            borderRadius: 0,
-            fontWeight: 500,
-            background: tab === item.key ? "#e0e7ff" : "transparent",
-            color: tab === item.key ? "#1e293b" : "#374151",
-            boxShadow: "none",
-            flex: 1,
-            height: "100%",
-            minWidth: 0,
-            padding: 0,
+            position: "fixed",
+            top: 72,
+            left: 0,
+            right: 0,
+            height: 54,
+            background: darkMode ? "#232326" : "#fff",
+            borderBottom: darkMode ? "1px solid #333" : "1px solid #e5e7eb",
+            zIndex: 100,
+            color: darkMode ? "#e5e7eb" : undefined,
+            overflowX: "auto",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "thin",
           }}
-          onClick={() => setTab(item.key)}
         >
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-            <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {item.icon}
-            </div>
-            <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
-          </div>
-        </Button>
-      ))}
-    </nav>
+          {navItems.map((item, idx) => (
+            <Button
+              key={item.key}
+              variant={tab === item.key ? "primary" : "light"}
+              className="d-flex flex-column align-items-center justify-content-center px-2 py-1"
+              style={{
+                border: "none",
+                borderRadius: 0,
+                fontWeight: 500,
+                background: tab === item.key ? "#e0e7ff" : "transparent",
+                color: tab === item.key ? "#1e293b" : "#374151",
+                boxShadow: "none",
+                width: 100, // stała szerokość
+                minWidth: 100,
+                maxWidth: 100,
+                height: "100%",
+                padding: 0,
+                marginRight: idx !== navItems.length - 1 ? 8 : 0, // odstęp tylko po prawej, oprócz ostatniego
+              }}
+              onClick={() => setTab(item.key)}
+            >
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                <div style={{ height: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {item.icon}
+                </div>
+                <span style={{ fontSize: 12, marginTop: 2 }}>{item.label}</span>
+              </div>
+            </Button>
+          ))}
+        </nav>
 
       {/* Main content */}
+      {infoModalToggle && showInfoModal && (
+      <Modal
+        show={showInfoModal}
+        onHide={() => setShowInfoModal(false)}
+        centered
+        container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Informacja</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div dangerouslySetInnerHTML={{ __html: infoModalText }} />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="primary" onClick={() => setShowInfoModal(false)}>
+            OK
+          </Button>
+          <Button variant="outline-secondary" onClick={handleHideInfoModal}>
+            Nie pokazuj więcej
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      )}
       <Container
           fluid
           style={{
@@ -1205,15 +1757,15 @@ async function handleNotificationToggle(checked) {
                           </div>
                           <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
                             <Button
-                              variant="outline-primary"
-                              size="sm"
-                              title="Dodaj punkty"
-                              onClick={() => handleOpenAddModal(scout.id)}
-                              className="d-flex align-items-center"
-                            >
-                              <Plus size={16} className="me-1" />
-                              {!isMobile && <span>Dodaj punkty</span>}
-                            </Button>
+                          variant="outline-primary"
+                          size="sm"
+                          title="Dodaj punkty"
+                          onClick={() => handleOpenAddModal(scout.id)}
+                          className="d-flex align-items-center"
+                        >
+                          <Plus size={16} className="me-1" />
+                          {!isMobile && <span>Dodaj punkty</span>}
+                        </Button>
                             <Button
                               variant="outline-secondary"
                               size="sm"
@@ -1295,9 +1847,65 @@ async function handleNotificationToggle(checked) {
                       </Modal.Body>
                     </Modal>
 
+                  {/* MODAL WYBORU TYPU WPISU */}
+                  <Modal
+                    show={showAddTypeModal}
+                    onHide={() => setShowAddTypeModal(false)}
+                    centered
+                    container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+                  >
+                    <Modal.Header closeButton>
+                      <Modal.Title>Wybierz typ wpisu</Modal.Title>
+                    </Modal.Header>
+                    <Modal.Body>
+                      <Row className="g-3">
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-primary"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("single")}
+                          >
+                            <Trophy size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj pojedyńczy wpis</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-success"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("trip")}
+                          >
+                            <Users size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj wyjazd</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-warning"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("meeting")}
+                          >
+                            <Clock size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj zbiórkę</span>
+                          </Button>
+                        </Col>
+                        <Col xs={12} md={6}>
+                          <Button
+                            variant="outline-secondary"
+                            className="w-100 py-4 d-flex flex-column align-items-center"
+                            onClick={() => handleAddType("ceremony")}
+                          >
+                            <Award size={36} className="mb-2" />
+                            <span className="fw-bold">Dodaj obrzędowość</span>
+                          </Button>
+                        </Col>
+                      </Row>
+                    </Modal.Body>
+                  </Modal>
+                  
                   {/* Modal dodawania punktów */}
-                  <Modal show={showAddModal} 
-                      onHide={() => setShowAddModal(false)} 
+                  <Modal show={showAddSingleModal} 
+                      onHide={() => { setShowAddSingleModal(false); resetAddForm(); }} 
                       centered
                       container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
                   <Modal.Header closeButton>
@@ -1427,6 +2035,275 @@ async function handleNotificationToggle(checked) {
               )}
             </>
           )}
+
+                    {/*MODAL DODAWANIA WYJAZDU */}
+          <Modal
+            show={showAddTripModal}
+            onHide={() => { setShowAddTripModal(false); resetAddForm(); }}
+            centered
+            container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Dodaj wyjazd</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <div className="text-center text-muted py-5">
+                Formularz dodawania wyjazdu w przygotowaniu.
+              </div>
+            </Modal.Body>
+          </Modal>
+          
+          {/* MODAL DODAWANIA ZBIÓRKI */}
+          <Modal
+            show={showAddMeetingModal}
+            onHide={() => {
+              setShowAddMeetingModal(false);
+              resetMeetingForm(); // resetuj formularz po zamknięciu
+            }}
+            centered
+            container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Dodaj zbiórkę</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form onSubmit={e => {
+                handleAddMeetingSubmit(e);
+                resetMeetingForm(); // resetuj formularz po dodaniu punktów
+              }}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Zastęp</Form.Label>
+                  <Form.Select value={addScoutId || ""} disabled>
+                    <option>Wybierz zastęp</option>
+                    {teamScouts.map((scout) => (
+                      <option key={scout.id} value={scout.id}>{scout.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Kategoria</Form.Label>
+                  <Form.Select value="obecnosc_na_zbiorce" disabled>
+                    <option value="obecnosc_na_zbiorce">Obecność na zbiórce</option>
+                  </Form.Select>
+                  <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                    <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.scoringKey === "obecnosc")?.scoringDesc }} />
+                  </div>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                <Form.Label>Zaznacz obecnych harcerzy (max 7)</Form.Label>
+                <div className="d-flex flex-column gap-2">
+                  {zastepy.find(z => z.id === addScoutId)?.harcerze?.map(h => (
+                    <div
+                      key={h.id}
+                      className="d-flex align-items-center"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleMeetingPresenceChange(h.id)}
+                    >
+                      <Form.Check
+                        type="checkbox"
+                        label=""
+                        checked={meetingPresence.includes(h.id)}
+                        onChange={() => handleMeetingPresenceChange(h.id)}
+                        disabled={
+                          !meetingPresence.includes(h.id) && meetingPresence.length >= 7
+                        }
+                        style={{ marginRight: 8, pointerEvents: "none" }} // blokuj kliknięcie bezpośrednio na checkbox
+                      />
+                      <span
+                        style={{
+                          userSelect: "none",
+                          color: meetingPresence.includes(h.id) ? "#0d7337" : undefined,
+                          fontWeight: meetingPresence.includes(h.id) ? 600 : 400,
+                          fontSize: "1.08em"
+                        }}
+                      >
+                        {h.name} {h.surname}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                {meetingPresence.length >= 7 && (
+                  <div className="text-danger mt-2" style={{ fontSize: "0.95rem" }}>
+                    Możesz zaznaczyć maksymalnie 7 harcerzy.
+                  </div>
+                )}
+              </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                  <Form.Select
+                    value={addMonth}
+                    onChange={e => setAddMonth(e.target.value)}
+                    required
+                  >
+                    <option value="">Wybierz miesiąc</option>
+                    <option value="202509">wrzesień 2025</option>
+                    <option value="202510">październik 2025</option>
+                    <option value="202511">listopad 2025</option>
+                    <option value="202512">grudzień 2025</option>
+                    <option value="202601">styczeń 2026</option>
+                    <option value="202602">luty 2026</option>
+                    <option value="202603">marzec 2026</option>
+                    <option value="202604">kwiecień 2026</option>
+                    <option value="202605">maj 2026</option>
+                    <option value="202606">czerwiec 2026</option>
+                  </Form.Select>
+                </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={addNotes}
+                    onChange={e => setAddNotes(e.target.value)}
+                    placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                  />
+                </Form.Group>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-100"
+                  disabled={
+                    !addScoutId ||
+                    !addMonth ||
+                    meetingPresence.length === 0
+                  }
+                >
+                  Dodaj obecność
+                </Button>
+              </Form>
+            </Modal.Body>
+          </Modal>
+
+          {/* MODAL DODAWANIA OBRZĘDOWOŚCI */}
+            <Modal
+              show={showAddCeremonyModal}
+              onHide={handleCloseAddCeremonyModal}
+              centered
+              container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}
+            >
+              <Modal.Header closeButton>
+                <Modal.Title>Dodaj obrzędowość</Modal.Title>
+              </Modal.Header>
+              <Modal.Body>
+                <Form onSubmit={handleAddCeremonySubmit}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Zastęp</Form.Label>
+                    <Form.Select value={addScoutId || ""} disabled>
+                      <option>Wybierz zastęp</option>
+                      {teamScouts.map((scout) => (
+                        <option key={scout.id} value={scout.id}>{scout.name}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Kategoria</Form.Label>
+                    <Form.Select value="ceremony" disabled>
+                      <option value="ceremony">Obrzędowość zastępów</option>
+                    </Form.Select>
+                    {/* Opis kategorii */}
+                    <div className="text-muted mt-1" style={{ fontSize: "0.95rem", paddingTop: "0.5rem" }}>
+                      <span dangerouslySetInnerHTML={{ __html: scoringCategories.find(cat => cat.scoringKey === "ceremony")?.scoringDesc }} />
+                    </div>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Rodzaj obrzędowości — wybierz ile punktów dodać <br/>(max 1 pkt/kategoria/zbiórka)</Form.Label>
+                    {[
+                      { key: "proporzec", label: "Proporzec" },
+                      { key: "mundur", label: "Oznaczenie na mundurze" },
+                      { key: "dodatkowa", label: "Dodatkowa obrzędowość" }
+                    ].map(t => (
+                      <div key={t.key} className="d-flex align-items-center justify-content-between mb-2 p-2 border rounded" style={{ background: darkMode ? "#1b1b1d" : "#fff" }}>
+                        <div style={{ 
+                          fontWeight: (ceremonyCounts[t.key] || 0) > 0 ? 600 : 400, 
+                          color: (ceremonyCounts[t.key] || 0) > 0 ? "#0d7337" : undefined 
+                          }}>
+                          {t.label}
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => handleCeremonyCountChange(t.key, (ceremonyCounts[t.key] || 0) - 1)}
+                            aria-label={`Zmniejsz ${t.label}`}
+                            className="d-flex align-items-center justify-content-center"
+                            style={{ minWidth: 36, minHeight: 32, padding: "0.25rem" }}
+                          >
+                            <Minus size={16} />
+                          </Button>
+                          <div style={{ 
+                            minWidth: 28, 
+                            textAlign: "center", 
+                            fontWeight: 700, 
+                            color: (ceremonyCounts[t.key] || 0) > 0 ? "#0d7337" : undefined 
+                            }}>
+                            {ceremonyCounts[t.key]}
+                          </div>
+                          <Button
+                          size="sm"
+                          variant="success"
+                          onClick={() => handleCeremonyCountChange(t.key, (ceremonyCounts[t.key] || 0) + 1)}
+                          aria-label={`Zwiększ ${t.label}`}
+                          className="d-flex align-items-center justify-content-center"
+                          style={{ minWidth: 36, minHeight: 32, padding: "0.25rem" }}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Klasyfikacja miesięczna</Form.Label>
+                    <Form.Select
+                      value={addMonth}
+                      onChange={e => setAddMonth(e.target.value)}
+                      required
+                    >
+                      <option value="">Wybierz miesiąc</option>
+                      <option value="202509">wrzesień 2025</option>
+                      <option value="202510">październik 2025</option>
+                      <option value="202511">listopad 2025</option>
+                      <option value="202512">grudzień 2025</option>
+                      <option value="202601">styczeń 2026</option>
+                      <option value="202602">luty 2026</option>
+                      <option value="202603">marzec 2026</option>
+                      <option value="202604">kwiecień 2026</option>
+                      <option value="202605">maj 2026</option>
+                      <option value="202606">czerwiec 2026</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Uwagi (opcjonalnie)</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={addNotes}
+                      onChange={e => setAddNotes(e.target.value)}
+                      placeholder="Dodaj uwagi do wpisu (opcjonalnie)"
+                    />
+                  </Form.Group>
+                  <Alert variant="info" className="mb-3" style={{ fontSize: "0.98em" }}>
+                    <strong>Uwaga:</strong> Dla każdego zaznaczonego rodzaju obrzędowości dodana zostanie wybrana liczba osobnych wpisów.
+                  </Alert>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-100"
+                    disabled={
+                      !addScoutId ||
+                      !addMonth ||
+                      (
+                        (ceremonyCounts.proporzec || 0) === 0 &&
+                        (ceremonyCounts.mundur || 0) === 0 &&
+                        (ceremonyCounts.dodatkowa || 0) === 0
+                      )
+                    }
+                  >
+                    Dodaj punkty
+                  </Button>
+                </Form>
+              </Modal.Body>
+            </Modal>
 
           {tab === "history" && (
           <Container
@@ -1612,7 +2489,9 @@ async function handleNotificationToggle(checked) {
                           </Col>
                           {!isMobile && (
                             <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
-                              <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                              <Button variant="outline-secondary" 
+                              size="sm" 
+                              onClick={handleResetFilters}>
                                 Resetuj filtry
                               </Button>
                               <Button
@@ -1629,9 +2508,17 @@ async function handleNotificationToggle(checked) {
                               >
                                 Odśwież punktację
                               </Button>
-                              <div className="text-muted ms-2">
-                                Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
-                              </div>
+                          
+                        {enableBulkActionsInHistory && (
+                          <div className="d-flex gap-2">
+                            <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
+                              Usuń zaznaczone
+                            </Button>
+                            <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
+                              Edytuj zaznaczone
+                            </Button>
+                          </div>
+                        )}
                             </Col>
                           )}
                         </Row>
@@ -1655,9 +2542,6 @@ async function handleNotificationToggle(checked) {
                         >
                           Odśwież punktację
                         </Button>
-                        <div className="text-muted mt-2">
-                          Wyświetlono {paginatedHistoryRecords.length} z {totalHistoryRows} wpisów
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1668,6 +2552,32 @@ async function handleNotificationToggle(checked) {
                   <div className="text-muted py-5 text-center">Brak wpisów punktacji dla wybranych filtrów.</div>
                 ) : (
                   <>
+                        {/* Bulk actions toolbar */}
+                    {enableBulkActionsInHistory && (
+                      <div className="d-flex align-items-center justify-content-between mb-3"
+                      style={{ marginTop: 6, padding: 0 }}>
+                        <div className="d-flex align-items-center gap-3">
+                          <Form.Check
+                            type="checkbox"
+                            id="select-all-visible"
+                            checked={paginatedHistoryRecords.length > 0 && paginatedHistoryRecords.every(r => selectedHistoryIds.has(r.id))}
+                            onChange={() => handleSelectAllVisible(paginatedHistoryRecords.map(r => r.id))}
+                            label={`Zaznacz wszystkie (${paginatedHistoryRecords.length})`}
+                          />
+                        </div>
+                        {isMobile && (
+                        <div className="d-flex gap-2">
+                          <Button variant="outline-danger" size="sm" disabled={selectedHistoryIds.size === 0 || bulkActionLoading} onClick={handleBulkDeleteConfirm}>
+                            Usuń zaznaczone
+                          </Button>
+                          <Button variant="outline-primary" size="sm" disabled={selectedHistoryIds.size === 0} onClick={() => setShowBulkEditModal(true)}>
+                            Edytuj zaznaczone
+                          </Button>
+                        </div>
+                        )}
+                      </div>
+                    )}
+
                     <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"} >
                       {paginatedHistoryRecords.map((rec) => (
                         <div
@@ -1682,7 +2592,18 @@ async function handleNotificationToggle(checked) {
                               minHeight: isDesktopWide ? 0 : undefined
                             }}
                           >
-                            <div className="d-flex align-items-start justify-content-between gap-4">
+                            <div className={`d-flex history-record-row ${enableBulkActionsInHistory ? "bulk-enabled align-items-center" : "align-items-start"} justify-content-between ${enableBulkActionsInHistory ? "" : "gap-4"}`}>
+                              {enableBulkActionsInHistory ? (
+                              <div className="history-select-container">
+                                  <Form.Check
+                                    type="checkbox"
+                                    checked={selectedHistoryIds.has(rec.id)}
+                                    onChange={() => toggleSelectHistory(rec.id)}
+                                    className="history-select-checkbox"
+                                    style={{ marginRight: 6, padding: 0 }}
+                                  />
+                                </div>
+                              ) : null}                    
                               <div className="flex-grow-1">
                                 <div className="d-flex align-items-center gap-3 mb-2">
                                   <div>
@@ -1739,64 +2660,94 @@ async function handleNotificationToggle(checked) {
                                   pkt
                                 </div>
                               </div>
-<div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
-  <Button
-    size="sm"
-    variant="outline-secondary"
-    onClick={() => openEditEntryModal(rec)}
-    className="mb-1 d-flex align-items-center"
-    title="Edytuj"
-    style={{
-      minWidth: !isMobile ? 75 : undefined,
-      justifyContent: "flex-start",
-      textAlign: "left",
-    }}
-  >
-    <Edit size={14} />
-    {!isMobile && <span className="ms-1">Edytuj</span>}
-  </Button>
-  <Button
-    size="sm"
-    variant="outline-danger"
-    onClick={() => openDeleteEntryModal(rec)}
-    className="d-flex align-items-center"
-    title="Usuń"
-    style={{
-      minWidth: !isMobile ? 75 : undefined,
-      justifyContent: "flex-start",
-      textAlign: "left",
-    }}
-  >
-    <Trash2 size={14} />
-    {!isMobile && <span className="ms-1">Usuń</span>}
-  </Button>
-  {rec.scoreInfo && (
-    <Button
-      size="sm"
-      variant="outline-primary"
-      className="mt-1 d-flex align-items-center"
-      title="Pokaż uwagi"
-      onClick={() => {
-        setNotesHtml(rec.scoreInfo);
-        setNotesTitle("Uwagi do wpisu");
-        setShowNotesModal(true);
-      }}
-      style={{
-        minWidth: !isMobile ? 75 : undefined,
-        justifyContent: "flex-start",
-        textAlign: "left",
-      }}
-    >
-      <Info size={16} />
-      {!isMobile && <span className="ms-1">Uwagi</span>}
-    </Button>
-  )}
-</div>
+                              <div className="flex-shrink-0 d-flex flex-column gap-1 align-items-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline-secondary"
+                                  onClick={() => openEditEntryModal(rec)}
+                                  className="mb-1 d-flex align-items-center"
+                                  title="Edytuj"
+                                  style={{
+                                    minWidth: !isMobile ? 75 : undefined,
+                                    justifyContent: "flex-start",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  <Edit size={14} />
+                                  {!isMobile && <span className="ms-1">Edytuj</span>}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline-danger"
+                                  onClick={() => openDeleteEntryModal(rec)}
+                                  className="d-flex align-items-center"
+                                  title="Usuń"
+                                  style={{
+                                    minWidth: !isMobile ? 75 : undefined,
+                                    justifyContent: "flex-start",
+                                    textAlign: "left",
+                                  }}
+                                >
+                                  <Trash2 size={14} />
+                                  {!isMobile && <span className="ms-1">Usuń</span>}
+                                </Button>
+                                {rec.scoreInfo && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline-primary"
+                                    className="mt-1 d-flex align-items-center"
+                                    title="Pokaż uwagi"
+                                    onClick={() => {
+                                      setNotesHtml(rec.scoreInfo);
+                                      setNotesTitle("Uwagi do wpisu");
+                                      setShowNotesModal(true);
+                                    }}
+                                    style={{
+                                      minWidth: !isMobile ? 75 : undefined,
+                                      justifyContent: "flex-start",
+                                      textAlign: "left",
+                                    }}
+                                  >
+                                    <Info size={16} />
+                                    {!isMobile && <span className="ms-1">Uwagi</span>}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
                       ))}
                     </div>
+                    {/* Bulk edit modal */}
+                      <Modal show={showBulkEditModal} onHide={() => setShowBulkEditModal(false)} centered container={typeof window !== "undefined" ? document.body.querySelector('.panel-darkmode') : undefined}>
+                        <Modal.Header closeButton>
+                          <Modal.Title>Edytuj zaznaczone wpisy ({selectedHistoryIds.size})</Modal.Title>
+                        </Modal.Header>
+                        <Form onSubmit={handleBulkEditSubmit}>
+                          <Modal.Body>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Nowa klasyfikacja miesięczna (opcjonalnie)</Form.Label>
+                              <Form.Select value={bulkEditMonth} onChange={e => setBulkEditMonth(e.target.value)}>
+                                <option value="">Nie zmieniaj miesiąca</option>
+                                {historyMonthOptions.map(opt => (
+                                  <option key={opt.key} value={opt.key}>{opt.label}</option>
+                                ))}
+                              </Form.Select>
+                            </Form.Group>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Uwagi (nadpisz jeśli uzupełnione)</Form.Label>
+                              <Form.Control as="textarea" rows={3} value={bulkEditNotes} onChange={e => setBulkEditNotes(e.target.value)} placeholder="Wprowadź nowe uwagi (opcjonalnie)" />
+                            </Form.Group>
+                            <div className="text-muted small">Masowa edycja obsługuje zmianę miesiąca i uwag. Jeśli chcesz bardziej zaawansowanej edycji (kategoria/punkty), użyj indywidualnej edycji.</div>
+                          </Modal.Body>
+                          <Modal.Footer>
+                            <Button variant="secondary" onClick={() => setShowBulkEditModal(false)}>Anuluj</Button>
+                            <Button type="submit" variant="primary" disabled={bulkActionLoading || selectedHistoryIds.size === 0}>
+                              Zapisz zmiany
+                            </Button>
+                          </Modal.Footer>
+                        </Form>
+                      </Modal>
                     <Modal show={showNotesModal} 
                           onHide={() => setShowNotesModal(false)} 
                           centered
@@ -2014,11 +2965,52 @@ async function handleNotificationToggle(checked) {
             <span className="fw-semibold">Ustawienia</span>
           </Card.Header>
           <Card.Body>
+
+            {/* Nowa karta: Główne ustawienia */}
+                          {userWeb?.admin === true && (
+              <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
+                <Card.Header className="d-flex align-items-center gap-2">
+                  <Settings size={20} className="me-2" />
+                  <span className="fw-semibold">Główne ustawienia</span>
+                </Card.Header>
+                <Card.Body>
+                  <Form>
+                    <Form.Check
+                      type="switch"
+                      id="advanced-add-points-switch"
+                      label="Wyświetlaj zaawansowane okna dodawania punktacji"
+                      checked={advancedAddPoints}
+                      onChange={e => handleAdvancedAddPointsToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem" }}
+                    />
+                    <div className="text-muted mt-2" style={{ fontSize: "0.95rem" }}>
+                      Jeśli wyłączysz tę opcję, po kliknięciu „Dodaj punkty” w sekcji Moje zastępy od razu otworzy się zwykłe okno dodawania punktów.
+                    </div>
+                    <Form.Check
+                      type="switch"
+                      id="auto-suggest-month-switch"
+                      label="Automatycznie proponuj obecny miesiąc przy dodawaniu punktacji"
+                      checked={autoSuggestCurrentMonth}
+                      onChange={e => handleAutoSuggestToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 12 }}
+                    />
+                    <Form.Check
+                      type="switch"
+                      id="enable-bulk-actions-switch"
+                      label="Wyświetlaj przyciski akcji masowych w historii wpisów"
+                      checked={enableBulkActionsInHistory}
+                      onChange={e => handleEnableBulkActionsToggle(e.target.checked)}
+                      style={{ fontWeight: 500, fontSize: "1.1rem", marginTop: 12 }}
+                  />
+                  </Form>
+                </Card.Body>
+              </Card>
+            )}
             {/* Karta: Funkcje eksperymentalne */}
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <Info size={20} className="me-2" />
-                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie testowania)</span>
+                <span className="fw-semibold">Funkcje eksperymentalne (w trakcie rozwoju lub testowania)</span>
               </Card.Header>
               <Card.Body>
                 <Form>
@@ -2051,7 +3043,7 @@ async function handleNotificationToggle(checked) {
             <Card className="mb-4" style={darkMode ? darkCardStyle : {}}>
               <Card.Header className="d-flex align-items-center gap-2">
                 <AlertTriangle size={20} className="me-2" />
-                <span className="fw-semibold">Zgłoś błąd</span>
+                <span className="fw-semibold">Zgłoś błąd lub sugestię</span>
               </Card.Header>
               <Card.Body>
                 <div className="text-center text-muted py-5">
@@ -2067,6 +3059,105 @@ async function handleNotificationToggle(checked) {
                 </div>
               </Card.Body>
                 </Card>
+              </Card.Body>
+            </Card>
+          )}
+
+          {/* Sekcja Audyt dla audytora */}
+        {tab === "audit" && (
+          <Card style={darkMode ? darkCardStyle : {}}>
+            <Card.Header className="d-flex align-items-center gap-2">
+              <AlertTriangle size={20} className="me-2" />
+              <span className="fw-semibold">Audyt</span>
+            </Card.Header>
+            <Card.Body>
+              <h5 className="mb-4 fw-semibold">
+                Wpisy dodane po terminie
+              </h5>
+              {configSettings === null ? (
+                <div className="text-muted py-4 text-center">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Ładowanie ustawień audytu...
+                </div>
+              ) : flaggedEntries.length === 0 ? (
+                <div className="text-muted py-4 text-center">
+                  Brak wpisów dodanych po terminie.
+                </div>
+              ) : (
+                <Table bordered hover responsive style={darkMode ? darkTableStyle : {}}>
+              <thead>
+                <tr>
+                  <th>Zastęp</th>
+                  <th>Drużyna</th>
+                  <th>Kategoria</th>
+                  <th>Miesiąc</th>
+                  <th>Dodano</th>
+                  <th>Przekroczono</th>
+                  <th>Ostatni modyfikujący</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flaggedEntries.map(rec => {
+                  const year = parseInt(rec.miesiac.slice(0, 4), 10);
+                  const month = parseInt(rec.miesiac.slice(4, 6), 10);
+                  let nextMonth = month + 1;
+                  let nextYear = year;
+                  if (nextMonth > 12) {
+                    nextMonth = 1;
+                    nextYear += 1;
+                  }
+                  const deadlineDate = new Date(nextYear, nextMonth - 1, deadlineDayOfMonth, 23, 59, 59, 999);
+                  let addDate;
+                  if (typeof rec.scoreAddDate === "object" && rec.scoreAddDate.seconds) {
+                    addDate = new Date(rec.scoreAddDate.seconds * 1000);
+                  } else if (typeof rec.scoreAddDate === "string") {
+                    addDate = new Date(rec.scoreAddDate);
+                  }
+                  // Wylicz przekroczenie w godzinach
+                  let przekroczono = "-";
+                  if (addDate && deadlineDate && addDate > deadlineDate) {
+                    const diffMs = addDate.getTime() - deadlineDate.getTime();
+                    const diffHours = Math.round(diffMs / (1000 * 60 * 60));
+                    przekroczono = `${diffHours} h`;
+                  }
+                  return (
+                    <tr key={rec.id}>
+                      <td>{rec.scoreTeam?.[0]?.snapshot?.fullName || rec.scoreTeam?.[0]?.snapshot?.name || "-"}</td>
+                      <td>{rec.scoreTeam?.[0]?.snapshot?.teamName || rec.scoreTeam?.[0]?.snapshot?.druzyna || "-"}</td>
+                      <td>{rec.scoreCat?.[0]?.snapshot?.scoringName || "-"}</td>
+                      <td>{getMonthLabelFromKey(rec.miesiac)}</td>
+                      <td>
+                        {addDate
+                          ? addDate.toLocaleDateString("pl-PL") + " " + addDate.toLocaleTimeString("pl-PL")
+                          : "-"}
+                      </td>
+                      <td>{przekroczono}</td>
+                      <td>{rec.scoreModifiedBy || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+              )}
+              <div className="mt-3 text-muted" style={{ fontSize: "0.95em" }}>
+                Wpis za dany miesiąc należy dodać do końca dnia <b>{deadlineDayOfMonth}</b> dnia miesiąca kolejnego.<br />
+                Aplikacja sprawdza wpisy dodane po tym terminie i oflagowuje je powyżej.
+              </div>
+            </Card.Body>
+          </Card>
+        )}
+
+        {/* .Tab administracyjny */}
+          {tab === "admin" && userWeb?.admin === true && (
+            <Card style={darkMode ? darkCardStyle : {}}>
+              <Card.Header className="d-flex align-items-center gap-2">
+                <Settings size={20} className="me-2" />
+                <span className="fw-semibold">Faza pucharowa</span>
+              </Card.Header>
+              <Card.Body>
+                {renderCupToggle()}
+                <BracketAdminPanel />
+                <AdminMatchManager />
               </Card.Body>
             </Card>
           )}

@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useEffect, useState, useMemo } from "react";
-import { Card, Container, Spinner, Badge, Button, Table, Image, Row, Col, Form, Collapse, Alert, Pagination } from "react-bootstrap";
+import { Card, Container, Spinner, Badge, Button, Table, Image, Row, Col, Form, Collapse, Pagination, Modal } from "react-bootstrap";
 import { Users, ChevronLeft, ExternalLink, UserCheck, Trophy, FileText, Info, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import logoPlaceholder from "../../images/logo_placeholder.png";
 import { Bar } from "react-chartjs-2";
@@ -14,35 +14,41 @@ import {
   Legend
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { Modal } from "react-bootstrap";
 import { zastepyListAll } from "../../services/zastepyList.mjs";
 import { punktacjaListAll } from "../../services/punktacjaList.mjs";
+import { getFirestore, collection, query, where, getDocs } from "firebase/firestore";
+import { app } from "../../firebaseConfig";
 import "./ZastepDetailPage.css";
+import { useAuth } from "../../AuthContext";
+import { Medal, MedalIcon, Award } from "lucide-react";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ChartDataLabels);
 
 const PLACEHOLDER_LOGO = logoPlaceholder;
+const STOPIEN_BADGE_WIDTH = 54;
 
 function getMonthLabelFromKey(key) {
   if (!key || key.length !== 6) return "brak";
-  const year = key.slice(0, 4);
   const m = parseInt(key.slice(4, 6), 10) - 1;
   const labels = [
     "styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec",
     "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"
   ];
-  return `${labels[m]} ${year}`;
+  return labels[m];
 }
 
 export default function ZastepDetailPage() {
   const { id } = useParams();
   const [zastep, setZastep] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const privacyAccess = typeof window !== "undefined" ? localStorage.getItem("privacyAccess") === "true" : false;
 
   // Punktacja
   const [scoreData, setScoreData] = useState([]);
   const [scoreLoading, setScoreLoading] = useState(true);
   const [monthOptions, setMonthOptions] = useState([]);
-  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState(""); // lista wpisów
+  const [selectedMonthTable, setSelectedMonthTable] = useState(""); // tabela punktacji
   const [catOptions, setCatOptions] = useState([]);
   const [selectedCat, setSelectedCat] = useState("");
   const [scoreValueFilter, setScoreValueFilter] = useState("");
@@ -53,9 +59,22 @@ export default function ZastepDetailPage() {
   const [catDescTitle, setCatDescTitle] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
+  // Kategorie z bazy (dla ikon)
+  const [scoringCategories, setScoringCategories] = useState([]);
+  useEffect(() => {
+    const db = getFirestore(app);
+    const q = query(collection(db, "scoring_categories"), where("scoringToggle", "==", true));
+    getDocs(q).then(snap => {
+      setScoringCategories(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+  }, []);
+
   // Responsive helpers
   const isMobile = typeof window !== "undefined" ? window.innerWidth < 768 : false;
   const isDesktopWide = typeof window !== "undefined" ? window.innerWidth >= 992 : false;
+
+  // Uwagi - rozwijanie
+  const [expandedNotes, setExpandedNotes] = useState({});
 
   useEffect(() => {
     zastepyListAll().then((all) => {
@@ -81,12 +100,17 @@ export default function ZastepDetailPage() {
       const monthsArr = Array.from(monthsSet)
         .filter(Boolean)
         .map((key) => ({
-            key,
-            label: getMonthLabelFromKey(key)
+          key,
+          label: getMonthLabelFromKey(key)
         }))
         .filter(m => m && typeof m.key === "string")
         .sort((a, b) => a.key.localeCompare(b.key));
       setMonthOptions(monthsArr);
+
+      // Domyślnie najnowszy miesiąc tylko dla tabeli
+      if (monthsArr.length > 0) {
+        setSelectedMonthTable(monthsArr[monthsArr.length - 1].key);
+      }
 
       // Kategorie
       const catsSet = new Map();
@@ -102,7 +126,7 @@ export default function ZastepDetailPage() {
     });
   }, [id]);
 
-  // Filtry i paginacja (dokładnie jak w PanelPage)
+  // Sortowanie od najnowszych miesięcy i dat
   const filteredRecords = useMemo(() => {
     let records = scoreData;
     if (selectedMonth) records = records.filter(r => r.miesiac === selectedMonth);
@@ -111,7 +135,17 @@ export default function ZastepDetailPage() {
       const val = Number(scoreValueFilter);
       if (!isNaN(val)) records = records.filter(r => r.scoreValue === val);
     }
-    return records;
+    // Sortuj najpierw po miesiącu malejąco, potem po dacie wpisu malejąco
+    return [...records].sort((a, b) => {
+      if (a.miesiac !== b.miesiac) return b.miesiac.localeCompare(a.miesiac);
+      const dateA = new Date(typeof a.scoreAddDate === "object" && a.scoreAddDate.seconds
+        ? a.scoreAddDate.seconds * 1000
+        : a.scoreAddDate);
+      const dateB = new Date(typeof b.scoreAddDate === "object" && b.scoreAddDate.seconds
+        ? b.scoreAddDate.seconds * 1000
+        : b.scoreAddDate);
+      return dateB - dateA;
+    });
   }, [scoreData, selectedMonth, selectedCat, scoreValueFilter]);
 
   const totalRows = filteredRecords.length;
@@ -238,6 +272,14 @@ export default function ZastepDetailPage() {
     return "";
   }
 
+  // Funkcja do czyszczenia HTML z uwag
+  function stripHtml(html) {
+    if (!html) return "";
+    const tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+  }
+
   if (loading) {
     return (
       <Container className="py-5 text-center" style={{ marginTop: "6rem", background: "#f8f9fa" }}>
@@ -260,23 +302,23 @@ export default function ZastepDetailPage() {
 
   return (
     <Container className="py-5" style={{ maxWidth: 1200, marginTop: "3rem", background: "#f8f9fa" }}>
-      <Button as={Link} to="/zastepy" variant="outline-primary" className="mb-4">
-        <ChevronLeft size={18} className="me-1" />
-        Powrót do listy zastępów
-      </Button>
-      <Row>
-        <Col xs={12} md={6} className="mb-4 mb-md-0">
-          <Card className="shadow h-100">
-            <Card.Body>
+    <Row>
+      <Col xs={12} md={5} className="mb-4 mb-md-0">
+        <Card className="shadow h-100">
+          <Card.Body>
               <div className="d-flex align-items-center gap-4 mb-3">
                 <Image
-                  src={typeof zastep.logo === "string" && zastep.logo.trim() ? zastep.logo : logoPlaceholder}
-                  roundedCircle
-                  width={120}
-                  height={120}
-                  alt="Logo zastępu"
-                  style={{ objectFit: "cover", background: "#f8f9fa" }}
-                />
+                src={
+                  Array.isArray(zastep.logo) && zastep.logo[0]?.downloadURL
+                    ? zastep.logo[0].downloadURL
+                    : logoPlaceholder
+                }
+                roundedCircle
+                width={120}
+                height={120}
+                alt="Logo zastępu"
+                style={{ objectFit: "cover", background: "#f8f9fa" }}
+              />
                 <div>
                   <h2 className="fw-bold mb-1">{zastep.fullName}</h2>
                   {zastep.jednostka && zastep.jednostka[0]?.snapshot.shortName && (
@@ -303,44 +345,128 @@ export default function ZastepDetailPage() {
                   </div>
                 </div>
               </div>
-              <h5 className="mt-4 mb-3">Lista harcerzy:</h5>
-              <Table bordered hover>
-                <tbody>
-                  {zastep.harcerze.length > 0 ? (
-                    [
-                      ...zastep.harcerze.filter((h) => h.zastepowy),
-                      ...zastep.harcerze.filter((h) => !h.zastepowy)
-                    ].map((h) => (
+              <h5 className="mt-4 mb-3 d-flex justify-content-between align-items-center">
+                <span>Lista harcerzy:</span>
+              </h5>
+            <Table bordered hover>
+            <tbody>
+              {zastep.harcerze.length > 0 ? (
+                (() => {
+                  const zastepowy = zastep.harcerze.find(h => h.zastepowy);
+                  const pozostali = zastep.harcerze.filter(h => !h.zastepowy)
+                    .map(h => {
+                      const scoutPoints = scoreData
+                        .filter(rec => rec.scoreScout?.[0]?.id === h.id)
+                        .reduce((sum, rec) => sum + rec.scoreValue, 0);
+                      return { ...h, scoutPoints };
+                    })
+                    .sort((a, b) => b.scoutPoints - a.scoutPoints);
+
+                  const ranking = [
+                    ...(zastepowy ? [{
+                      ...zastepowy,
+                      scoutPoints: scoreData
+                        .filter(rec => rec.scoreScout?.[0]?.id === zastepowy.id)
+                        .reduce((sum, rec) => sum + rec.scoreValue, 0)
+                    }] : []),
+                    ...pozostali
+                  ].sort((a, b) => b.scoutPoints - a.scoutPoints);
+
+                  const rankingMap = {};
+                  ranking.forEach((h, idx) => { rankingMap[h.id] = idx; });
+
+                  const medalColors = ["#FFD700", "#C0C0C0", "#CD7F32"];
+
+                  const renderRow = (h) => {
+                    const scoutPoints = h.scoutPoints !== undefined
+                      ? h.scoutPoints
+                      : scoreData.filter(rec => rec.scoreScout?.[0]?.id === h.id)
+                          .reduce((sum, rec) => sum + rec.scoreValue, 0);
+
+                    const idx = rankingMap[h.id];
+                    let medal = null;
+                    if (idx < 3) {
+                      medal = (
+                        <Medal
+                          size={20}
+                          style={{
+                            color: medalColors[idx],
+                            verticalAlign: "middle",
+                            marginLeft: 8,
+                            marginBottom: 2
+                          }}
+                          title={["Złoty medal", "Srebrny medal", "Brązowy medal"][idx]}
+                        />
+                      );
+                    }
+
+                    return (
                       <tr key={h.id}>
-                        <td>
-                          {h.stopien && (
-                            <Badge bg="light" text="dark" className="me-2">
-                              {h.stopien}
-                            </Badge>
-                          )}
-                          {h.name} {h.surname}
-                          {h.zastepowy && (
-                            <span title="Zastępowy" className="ms-2 align-middle">
-                              <UserCheck size={18} style={{ color: "#0d7337", verticalAlign: "middle" }} />
-                              <span className="ms-1" style={{ color: "#0d7337", fontWeight: 500, fontSize: "0.95em" }}>
-                                zastępowy
-                              </span>
-                            </span>
-                          )}
-                        </td>
+                      <td style={{ verticalAlign: "middle", width: "70%" }}>
+                        {(privacyAccess || user)
+                          ? <>
+                              {h.zastepowy && (
+                                <div className="mb-1 d-flex justify-content-between align-items-center">
+                                  <span title="Zastępowy" style={{ color: "#0d7337", fontWeight: 500, fontSize: "0.97em" }}>
+                                    <UserCheck size={16} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                                    zastępowy
+                                  </span>
+                                </div>
+                              )}
+                              {h.stopien && (
+                                <Badge
+                                  bg="light"
+                                  text="dark"
+                                  className="me-2"
+                                  style={{
+                                    width: STOPIEN_BADGE_WIDTH,
+                                    display: "inline-block",
+                                    textAlign: "center",
+                                    padding: "0.35em 0",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.03em"
+                                  }}
+                                >
+                                  {h.stopien}
+                                </Badge>
+                              )}
+                              {h.name} {h.surname}
+                              {medal}
+                            </>
+                          : <span className="text-muted">Dane ukryte</span>
+                        }
+                      </td>
+                      <td style={{ textAlign: "right", verticalAlign: "middle", width: "30%" }}>
+                        <span className="fw-bold text-primary">{scoutPoints}</span>
+                        <span className="text-muted ms-1" style={{ fontSize: "0.95em" }}>pkt</span>
+                      </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td className="text-muted text-center">Brak harcerzy w tym zastępie.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
+                    );
+                  };
+
+                  return (
+                    <>
+                      {zastepowy && renderRow(zastepowy)}
+                      {zastepowy && pozostali.length > 0 && (
+                        <tr>
+                          <td colSpan={2} style={{ height: "8px", background: "transparent", border: "none", padding: 0 }} />
+                        </tr>
+                      )}
+                      {pozostali.map(renderRow)}
+                    </>
+                  );
+                })()
+              ) : (
+                <tr>
+                  <td className="text-muted text-center" colSpan={2}>Brak harcerzy w tym zastępie.</td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
             </Card.Body>
           </Card>
         </Col>
-        <Col xs={12} md={6}>
+          <Col xs={12} md={7}>
           <Card className="shadow h-100">
             <Card.Header className="d-flex align-items-center gap-2">
               <Trophy size={20} className="me-2" />
@@ -372,60 +498,113 @@ export default function ZastepDetailPage() {
                 <div className="text-muted">Brak punktacji dla tego zastępu.</div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
-                  <Table
-                    bordered
-                    hover
-                    responsive
-                    className="align-middle punktacja-bordered"
-                    style={{
-                      borderCollapse: "separate",
-                      borderSpacing: 0,
-                      fontSize: "1.05rem",
-                      border: "2px solid #dee2e6",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-                      borderTop: "2px solid #dee2e6",
-                      borderBottom: "2px solid #dee2e6"
-                    }}
-                  >
-                    <thead>
-                      <tr style={{ background: "#f3f4f6" }}>
-                        <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}>Kategoria</th>
-                        {monthList.map(m => (
-                          <th
-                            key={m.key}
-                            className="text-center align-middle"
-                            style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}
-                          >
-                            {m.label}
+                  {isMobile ? (
+                    <Table
+                      bordered
+                      hover
+                      responsive
+                      className="align-middle punktacja-bordered"
+                      style={{
+                        borderCollapse: "separate",
+                        borderSpacing: 0,
+                        fontSize: "0.92rem", // zmniejszona czcionka na mobile
+                        border: "2px solid #dee2e6",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                        borderTop: "2px solid #dee2e6",
+                        borderBottom: "2px solid #dee2e6"
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ background: "#f3f4f6" }}>
+                          <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600 }}>Kategoria</th>
+                          <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600 }}>
+                            Miesiąc
+                            <Form.Select
+                              size="sm"
+                              className="mt-2"
+                              value={selectedMonthTable}
+                              onChange={e => setSelectedMonthTable(e.target.value)}
+                            >
+                              {monthOptions.map(opt => (
+                                <option key={opt.key} value={opt.key}>{opt.label}</option>
+                              ))}
+                            </Form.Select>
                           </th>
-                        ))}
-                        <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}>Suma</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pointsTable.map((row, idx) => (
-                        <tr
-                          key={row.catId}
-                          style={{
-                            borderBottom: "2px solid #dee2e6"
-                          }}
-                        >
-                          <td className="text-center align-middle fw-semibold" style={{ background: "#f8fafc" }}>{row.catName}</td>
-                          {row.points.map((pt, idx2) => (
-                            <td key={idx2} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
-                          ))}
-                          <td className="fw-bold text-center align-middle" style={{ background: "#f8fafc" }}>{row.total}</td>
+                          <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600 }}>Suma</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </Table>
+                      </thead>
+                      <tbody>
+                        {pointsTable.map(row => {
+                          let monthIdx = monthList.findIndex(m => m.key === selectedMonthTable);
+                          let monthPoints = selectedMonthTable && monthIdx !== -1 ? row.points[monthIdx] : row.points.reduce((a, b) => a + b, 0);
+                          return (
+                            <tr key={row.catId}>
+                              <td className="text-center align-middle fw-semibold" style={{ background: "#f8fafc" }}>{row.catName}</td>
+                              <td className="text-center align-middle" style={{ background: "#fff" }}>
+                                {selectedMonthTable && monthIdx !== -1 ? monthPoints : "-"}
+                              </td>
+                              <td className="fw-bold text-center align-middle" style={{ background: "#f8fafc" }}>{row.total}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <Table
+                      bordered
+                      hover
+                      responsive
+                      className="align-middle punktacja-bordered"
+                      style={{
+                        borderCollapse: "separate",
+                        borderSpacing: 0,
+                        fontSize: "1.05rem",
+                        border: "2px solid #dee2e6",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                        borderTop: "2px solid #dee2e6",
+                        borderBottom: "2px solid #dee2e6"
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ background: "#f3f4f6" }}>
+                          <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}>Kategoria</th>
+                          {monthList.map(m => (
+                            <th
+                              key={m.key}
+                              className="text-center align-middle"
+                              style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}
+                            >
+                              {m.label}
+                            </th>
+                          ))}
+                          <th className="text-center align-middle" style={{ background: "#f3f4f6", fontWeight: 600, letterSpacing: "0.03em" }}>Suma</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pointsTable.map((row, idx) => (
+                          <tr
+                            key={row.catId}
+                            style={{
+                              borderBottom: "2px solid #dee2e6"
+                            }}
+                          >
+                            <td className="text-center align-middle fw-semibold" style={{ background: "#f8fafc" }}>{row.catName}</td>
+                            {row.points.map((pt, idx2) => (
+                              <td key={idx2} className="text-center align-middle" style={{ background: "#fff" }}>{pt}</td>
+                            ))}
+                            <td className="fw-bold text-center align-middle" style={{ background: "#f8fafc" }}>{row.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  )}
                 </div>
               )}
             </Card.Body>
           </Card>
         </Col>
       </Row>
-      {/* Lista rekordów punktacji z filtrami i kartami jak w PanelPage */}
+      {/* Lista rekordów punktacji z filtrami i kartami*/}
       <Row>
         <Col xs={12}>
           <Card className="shadow">
@@ -510,75 +689,107 @@ export default function ZastepDetailPage() {
               ) : (
                 <>
                   <div className={isDesktopWide ? "row gx-3 gy-3" : "space-y-3"}>
-                    {paginatedRecords.map((rec) => (
-                      <div
-                        key={rec.id}
-                        className={isDesktopWide ? "col-md-6" : ""}
-                        style={isDesktopWide ? { display: "flex" } : {}}
-                      >
-                        <div className="bg-light rounded-lg border p-4 w-100" style={isDesktopWide ? { minHeight: 0 } : {}}>
-                          <div className="d-flex align-items-start justify-content-between gap-4">
-                            {/* Lewa część - główne informacje */}
-                            <div className="flex-grow-1">
-                              <div className="d-flex align-items-center gap-3 mb-2">
-                                <div>
-                                  <Trophy size={20} />
+                    {paginatedRecords.map((rec) => {
+                      const hasNotes = rec.scoreInfo && stripHtml(rec.scoreInfo).trim().length > 0;
+                      const plainNotes = rec.scoreInfo ? stripHtml(rec.scoreInfo).trim() : "";
+                      const notesShort = plainNotes.length > 60 ? plainNotes.slice(0, 60) + "..." : plainNotes;
+                      const isExpanded = expandedNotes[rec.id] || false;
+                      let IconComponent = Trophy;
+                      const catId = rec.scoreCat?.[0]?.id;
+                      const cat = scoringCategories.find(c => c.id === catId);
+                      if (cat?.scoringIcon) {
+                        try {
+                          const lucide = require("lucide-react");
+                          if (lucide[cat.scoringIcon]) IconComponent = lucide[cat.scoringIcon];
+                        } catch {}
+                      }
+                      return (
+                        <div
+                          key={rec.id}
+                          className={isDesktopWide ? "col-md-6" : ""}
+                          style={isDesktopWide ? { display: "flex" } : {}}
+                        >
+                          <div className="bg-light rounded-lg border p-4 w-100" style={isDesktopWide ? { minHeight: 0 } : {}}>
+                            <div className="d-flex align-items-start justify-content-between gap-4">
+                              <div className="flex-grow-1">
+                                <div className="d-flex align-items-center gap-3 mb-2">
+                                  <div>
+                                    <IconComponent size={20} />
+                                  </div>
+                                  <div>
+                                    <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
+                                      <span
+                                        style={{
+                                          color: "#0d6efd",
+                                          cursor: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "pointer" : "default",
+                                          textDecoration: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "underline dotted" : "none"
+                                        }}
+                                        onClick={() => {
+                                          if (rec.scoreCat?.[0]?.snapshot?.scoringDesc) {
+                                            setCatDescTitle(rec.scoreCat[0].snapshot.scoringName || "Opis kategorii");
+                                            setCatDescHtml(rec.scoreCat[0].snapshot.scoringDesc);
+                                            setShowCatDesc(true);
+                                          }
+                                        }}
+                                      >
+                                        {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
+                                      </span>
+                                    </h4>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="fw-semibold mb-1" style={{ fontSize: "1rem" }}>
-                                    <span
-                                      style={{
-                                        color: "#0d6efd",
-                                        cursor: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "pointer" : "default",
-                                        textDecoration: rec.scoreCat?.[0]?.snapshot?.scoringDesc ? "underline dotted" : "none"
-                                      }}
-                                      onClick={() => {
-                                        if (rec.scoreCat?.[0]?.snapshot?.scoringDesc) {
-                                          setCatDescTitle(rec.scoreCat[0].snapshot.scoringName || "Opis kategorii");
-                                          setCatDescHtml(rec.scoreCat[0].snapshot.scoringDesc);
-                                          setShowCatDesc(true);
-                                        }
-                                      }}
-                                    >
-                                      {rec.scoreCat?.[0]?.snapshot?.scoringName || "Brak kategorii"}
+                                <div className="d-flex flex-column flex-md-row align-items-md-center gap-2 text-xs text-muted mb-2">
+                                  <div>
+                                    {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
+                                    {rec.scoreScout?.[0]?.snapshot?.name && rec.scoreScout?.[0]?.snapshot?.surname && (
+                                    <Badge bg="success" className="ms-2">
+                                      {(privacyAccess || user)
+                                        ? `${rec.scoreScout[0].snapshot.name} ${rec.scoreScout[0].snapshot.surname}`
+                                        : "Dane ukryte"}
+                                    </Badge>
+                                  )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-center flex-shrink-0 px-2">
+                                <div className="fs-2 fw-bold text-primary">
+                                  {rec.scoreValue}
+                                </div>
+                                <div className="text-xs text-muted">
+                                  pkt
+                                </div>
+                              </div>
+                            </div>
+                            {hasNotes && (
+                              <div className="mt-2">
+                                <div
+                                  className="text-muted"
+                                  style={{
+                                    fontSize: "0.97em",
+                                    whiteSpace: isExpanded ? "normal" : "nowrap",
+                                    overflow: isExpanded ? "visible" : "hidden",
+                                    textOverflow: isExpanded ? "clip" : "ellipsis",
+                                    cursor: plainNotes.length > 60 ? "pointer" : "default",
+                                    maxWidth: "100%",
+                                  }}
+                                  onClick={() => {
+                                    if (plainNotes.length > 60) setExpandedNotes(prev => ({ ...prev, [rec.id]: !isExpanded }));
+                                  }}
+                                  title={plainNotes.length > 60 ? (isExpanded ? "Zwiń" : "Kliknij, aby rozwinąć") : undefined}
+                                >
+                                  {isExpanded ? plainNotes : notesShort}
+                                  {plainNotes.length > 60 && (
+                                    <span className="ms-2 text-primary" style={{ fontSize: "0.95em" }}>
+                                      {isExpanded ? "Zwiń" : "Rozwiń"}
                                     </span>
-                                  </h4>
+                                  )}
                                 </div>
                               </div>
-                              {/* Data, miesiąc */}
-                              <div className="d-flex flex-column flex-md-row align-items-md-center gap-2 text-xs text-muted mb-2">
-                                <div>
-                                  {formatDate(rec.scoreAddDate)} • {getMonthLabelFromKey(rec.miesiac)}
-                                </div>
-                              </div>
-                              {/* Uwagi */}
-                              <div className="mt-2 text-muted" style={{ fontSize: "0.97em" }}>
-                                {rec.scoreInfo
-                                  ? (
-                                    <span
-                                      dangerouslySetInnerHTML={{
-                                        __html: rec.scoreInfo
-                                      }}
-                                    />
-                                  )
-                                  : <span className="text-muted">brak uwag</span>}
-                              </div>
-                            </div>
-                            {/* Środek - punkty */}
-                            <div className="text-center flex-shrink-0 px-2">
-                              <div className="fs-2 fw-bold text-primary">
-                                {rec.scoreValue}
-                              </div>
-                              <div className="text-xs text-muted">
-                                pkt
-                              </div>
-                            </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                  {/* Paginacja */}
                   {totalPages > 1 && (
                     <div className="d-flex justify-content-center mt-3">
                       <Pagination>
@@ -598,7 +809,6 @@ export default function ZastepDetailPage() {
                       </Pagination>
                     </div>
                   )}
-                  {/* Modal z opisem kategorii */}
                   <Modal show={showCatDesc} onHide={() => setShowCatDesc(false)} centered>
                     <Modal.Header closeButton>
                       <Modal.Title>{catDescTitle}</Modal.Title>

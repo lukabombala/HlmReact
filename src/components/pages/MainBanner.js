@@ -32,7 +32,7 @@ export default function HeroSection() {
   const cardStyle = cardHeight ? { minHeight: cardHeight, height: cardHeight } : {};
 
   return (
-    <section id="home" className="py-4">
+    <section id="home">
       <Container style={{ paddingTop: "7rem" }}>
         <div className="text-center mb-4">
           <h2 className="fw-bold mb-2" style={{ fontSize: "2rem", color: "#0d7337" }}>
@@ -42,7 +42,7 @@ export default function HeroSection() {
             Śródroczna rywalizacja zastępów we Wrocławskim Hufcu Harcerzy "Starodrzew"
           </h4>
           <p className="fs-5 text-muted mx-auto" style={{ maxWidth: 500 }}>
-            Sezon 2025 zaczyna się już niedługo.
+            Sezon 2025 właśnie się rozpoczął!
           </p>
         </div>
         <Row xs={2} md={4} className="g-3 mb-2">

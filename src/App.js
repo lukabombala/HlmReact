@@ -14,6 +14,7 @@ import TeamsPage from  "./components/pages/TeamsPage";
 import ZastepDetailPage from "./components/pages/ZastepDetailPage";
 import PanelPage from "./components/pages/PanelPage";
 import ArchivePage from "./components/pages/ArchivePage";
+import FazaPucharowaPage from "./components/pages/FazaPucharowaPage";
 
 
 
@@ -32,6 +33,7 @@ function AppRoutes() {
   const location = useLocation();
   const [wasRedirected, setWasRedirected] = useState(false);
   const prevUserRef = useRef(null);
+  const [showCup, setShowCup] = useState(false);
 
   useEffect(() => {
     // Przekieruj tylko raz po zmianie user z null na obiekt (czyli po zalogowaniu)
@@ -52,6 +54,16 @@ function AppRoutes() {
     prevUserRef.current = user;
   }, [user, loading, location, wasRedirected, navigate]);
 
+  // Mechanizm pobierania showCup (taki sam jak w HeaderNav)
+  useEffect(() => {
+    import("./services/configList.mjs").then(({ configAll }) => {
+      configAll().then(configs => {
+        const cupConfig = configs.find(c => c.id === "zzzzzzzzzzzzzzzzzzzy");
+        setShowCup(!!(cupConfig && cupConfig.settingsToggle === true));
+      });
+    });
+  }, []);
+
   return (
     <>
       <HeaderNav />
@@ -65,6 +77,7 @@ function AppRoutes() {
             <Route path="zastepy" element={<TeamsPage />} />
             <Route path="zastepy/:id" element={<ZastepDetailPage />} />
             <Route path="archiwum" element={<ArchivePage />} />
+            {showCup && <Route path="fazapucharowa" element={<FazaPucharowaPage />} />}
             <Route
               path="panel"
               element={

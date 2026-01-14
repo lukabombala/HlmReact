@@ -16,7 +16,7 @@ export default function NewsSection() {
   const [filterAuthor, setFilterAuthor] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
-  const [newsPerPage, setNewsPerPage] = useState(4);
+  const [newsPerPage, setNewsPerPage] = useState(8);
   const [sortOrder, setSortOrder] = useState("desc"); // "desc" = najnowsze, "asc" = najstarsze
 
   // Responsive helper
@@ -101,7 +101,7 @@ export default function NewsSection() {
   }
 
   return (
-    <section id="news" className="py-5" style={{ background: "#f8f9fa" }}>
+    <section id="news" style={{ background: "#f8f9fa" , paddingTop: "1.5rem", paddingBottom: "2rem" }}>
       <Container>
         <div className="text-center mb-4">
           <h2 className="fw-bold mb-2">Aktualności</h2>
@@ -126,80 +126,80 @@ export default function NewsSection() {
           <Collapse in={showFilters}>
             <div id="filters-collapse">
               <Card.Body>
-                <Row className="g-3 mb-3">
-                  <Col md={3}>
-                    <Form.Label>Kategoria</Form.Label>
-                    <Form.Select
-                      value={filterCategory}
-                      onChange={e => setFilterCategory(e.target.value)}
-                    >
-                      <option value="">Wszystkie</option>
-                      {categoryOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Autor</Form.Label>
-                    <Form.Select
-                      value={filterAuthor}
-                      onChange={e => setFilterAuthor(e.target.value)}
-                    >
-                      <option value="">Wszyscy</option>
-                      {authorOptions.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Data od</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={filterDateFrom}
-                      onChange={e => setFilterDateFrom(e.target.value)}
-                    />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Data do</Form.Label>
-                    <Form.Control
-                      type="date"
-                      value={filterDateTo}
-                      onChange={e => setFilterDateTo(e.target.value)}
-                    />
-                  </Col>
-                </Row>
-                <Row className="g-3 mb-3">
-                  <Col md={3}>
-                    <Form.Label>Postów na stronę</Form.Label>
-                    <Form.Select
-                      value={newsPerPage}
-                      onChange={e => setNewsPerPage(Number(e.target.value))}
-                    >
-                      {[2, 4, 8, 12, 20].map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Sortowanie</Form.Label>
-                    <Form.Select
-                      value={sortOrder}
-                      onChange={e => setSortOrder(e.target.value)}
-                    >
-                      <option value="desc">Od najnowszych <SortDesc size={16} /></option>
-                      <option value="asc">Od najstarszych <SortAsc size={16} /></option>
-                    </Form.Select>
-                  </Col>
-                  <Col md={6} className="d-flex align-items-end justify-content-end gap-2">
-                    <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
-                      Resetuj filtry
-                    </Button>
-                    <div className="text-muted ms-2">
-                      Wyświetlono {currentNews.length} z {filteredNews.length} postów
-                    </div>
-                  </Col>
-                </Row>
-              </Card.Body>
+              <Row className={`g-3 mb-3 ${window.innerWidth < 768 ? "row-cols-2" : ""}`}>
+                <Col md={3} xs={6}>
+                  <Form.Label>Kategoria</Form.Label>
+                  <Form.Select
+                    value={filterCategory}
+                    onChange={e => setFilterCategory(e.target.value)}
+                  >
+                    <option value="">Wszystkie</option>
+                    {categoryOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={3} xs={6}>
+                  <Form.Label>Autor</Form.Label>
+                  <Form.Select
+                    value={filterAuthor}
+                    onChange={e => setFilterAuthor(e.target.value)}
+                  >
+                    <option value="">Wszyscy</option>
+                    {authorOptions.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={3} xs={6}>
+                  <Form.Label>Data od</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filterDateFrom}
+                    onChange={e => setFilterDateFrom(e.target.value)}
+                  />
+                </Col>
+                <Col md={3} xs={6}>
+                  <Form.Label>Data do</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={filterDateTo}
+                    onChange={e => setFilterDateTo(e.target.value)}
+                  />
+                </Col>
+              </Row>
+              <Row className={`g-3 mb-3 ${window.innerWidth < 768 ? "row-cols-2" : ""}`}>
+                <Col md={3} xs={6}>
+                  <Form.Label>Postów na stronę</Form.Label>
+                  <Form.Select
+                    value={newsPerPage}
+                    onChange={e => setNewsPerPage(Number(e.target.value))}
+                  >
+                    {[4, 8, 12, 20, 40].map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </Form.Select>
+                </Col>
+                <Col md={3} xs={6}>
+                  <Form.Label>Sortowanie</Form.Label>
+                  <Form.Select
+                    value={sortOrder}
+                    onChange={e => setSortOrder(e.target.value)}
+                  >
+                    <option value="desc">Od najnowszych</option>
+                    <option value="asc">Od najstarszych</option>
+                  </Form.Select>
+                </Col>
+                <Col md={6} xs={12} className="d-flex align-items-end justify-content-end gap-2">
+                  <Button variant="outline-secondary" size="sm" onClick={handleResetFilters}>
+                    Resetuj filtry
+                  </Button>
+                  <div className="text-muted ms-2">
+                    Wyświetlono {currentNews.length} z {filteredNews.length} postów
+                  </div>
+                </Col>
+              </Row>
+            </Card.Body>
             </div>
           </Collapse>
         </Card>
@@ -237,8 +237,8 @@ export default function NewsSection() {
                             position: "absolute",
                             left: 0,
                             right: 0,
-                            bottom: 16,
-                            padding: "0 1rem"
+                            bottom: 5,
+                            padding: "0 1rem",
                           }}
                         >
                           <div className="d-flex justify-content-between align-items-center text-muted" style={{ fontSize: "0.95em" }}>

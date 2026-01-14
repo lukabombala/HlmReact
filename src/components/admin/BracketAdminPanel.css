@@ -1,0 +1,14 @@
+.modal-dialog.manual-modal-wide, .manual-modal-wide .modal-dialog {
+  max-width: 1200px !important;
+  width: 100vw !important;
+}
+.manual-modal-wide .modal-dialog {
+  max-width: 1200px !important;
+  width: 100vw !important;
+}
+.manual-modal-wide .modal-content {
+  padding: 0 16px;
+}
+.manual-modal-wide .modal-body {
+  overflow-x: visible;
+}

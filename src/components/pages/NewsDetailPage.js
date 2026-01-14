@@ -51,7 +51,7 @@ export default function NewsDetailPage() {
   }
 
 return (
-    <Container className="py-5" style={{ maxWidth: "1100px", marginTop: "6rem" }}>
+    <Container className="py-5" style={{ maxWidth: "1100px", marginTop: "3rem" }}>
       <Card className="shadow">
         <div style={{ width: "100%", height: 320, overflow: "hidden", position: "relative" }}>
           <Card.Img
