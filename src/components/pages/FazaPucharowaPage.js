@@ -24,11 +24,11 @@ function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis,
     <div className={`match-card${highlight ? ' highlight' : ''}${arctusy ? ' arctusy' : ''}`}> 
       <div className="match-top-row" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
         <div className="team teamA" style={{ flex: 1, textAlign: 'right' }}>
-          <span className="nazwa" style={{ color: getColor(teamA) }}>{teamA && teamA.nazwa ? teamA.nazwa : <span style={{ color: '#bbb' }}>–</span>}</span>
+          <span className="nazwa" style={{ color: getColor(teamA) }}>{teamA && teamA.nazwa ? teamA.nazwa.toUpperCase() : <span style={{ color: '#bbb' }}>–</span>}</span>
         </div>
         {teamB ? (
           <div className="team teamB" style={{ flex: 1, textAlign: 'left' }}>
-            <span className="nazwa" style={{ color: getColor(teamB) }}>{teamB.nazwa}</span>
+            <span className="nazwa" style={{ color: getColor(teamB) }}>{teamB.nazwa ? teamB.nazwa.toUpperCase() : ""}</span>
           </div>
         ) : (
           phase === 1 ? (
@@ -53,7 +53,7 @@ function MatchCard({ teamA, teamB, scoreA, scoreB, highlight, arctusy, showOpis,
 
 // Parametry układu
 const CARD_HEIGHT = 40;
-const CARD_WIDTH = 210;
+const CARD_WIDTH = 220;
 const CARD_GAP_PHASE1 = 38;
 const CARD_GAP = 18;
 const COL_GAP = 18; // Slightly increased gap for better phase separation
@@ -632,19 +632,19 @@ export default function FazaPucharowaPage() {
         x2: rightSemi.x + CARD_WIDTH / 2,
         y2: rightSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR
       });
-      // Diagonal from left vertical to final
+      // Diagonal from left vertical to final (shift end y by +20)
       lines.push({
         x1: leftSemi.x + CARD_WIDTH / 2,
         y1: leftSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR,
         x2: finalPos.x + CARD_WIDTH / 2,
-        y2: finalPos.y
+        y2: finalPos.y + 20
       });
-      // Diagonal from right vertical to final
+      // Diagonal from right vertical to final (shift end y by +20)
       lines.push({
         x1: rightSemi.x + CARD_WIDTH / 2,
         y1: rightSemi.y + CARD_HEIGHT + SEMIFINAL_CONNECTOR,
         x2: finalPos.x + CARD_WIDTH / 2,
-        y2: finalPos.y
+        y2: finalPos.y + 20
       });
     }
     // SVG size
@@ -698,7 +698,29 @@ export default function FazaPucharowaPage() {
 
   return (
     <div className="faza-pucharowa-container" style={{ width: '100vw', overflow: 'auto', margin: 0, paddingTop: '7rem', background: '#f8f9fa' }}>
-      <h1 style={{ textAlign: 'center', margin: 0, padding: '16px 0 30px 0' }}>Faza pucharowa</h1>
+  
+      <div style={{
+        maxWidth: 1200,
+        margin: '0 auto 24px auto',
+        background: '#e3f2fd',
+        border: '2.5px solid #4299e1',
+        borderRadius: 12,
+        padding: '18px 28px',
+        fontSize: 18,
+        color: '#1a365d',
+        boxShadow: '0 2px 12px #4299e122',
+        lineHeight: 1.6
+      }}>
+        <b>Witamy w fazie pucharowej HLM sezonu 2025/2026!</b><br/>
+        W tym roku obowiązują następujące zasady:<br/>
+        <ul style={{margin: '10px 0 10px 24px', fontSize: 16}}>
+          <li>Zmagania pucharowe odbędą się w 5 rundach.</li>
+          <li>{roundsNoFirst[0] ? roundsNoFirst[0].filter(m => (m.teamA_id && !m.teamB_id) || (!m.teamA_id && m.teamB_id)).length : 0} najlepszych zastępów otrzymuje "wolny los" i nie musi walczyć w 1 rundzie (według punktacji ze stycznia 2026).</li>
+          <li>Każda runda trwa jeden miesiac, na koniec miesiąca zastęp który zdobędzie więcej punktów przechodzi do kolejnej rundy.</li>
+          <li>Więcej informacji w <b><a href="/regulamin" target="_blank" rel="noopener noreferrer">regulaminie Fazy Pucharowej</a></b></li>
+        </ul>
+        Życzymy powodzenia wszystkim zastęp i niech zwycięży najlepszy!
+      </div>
       {loading ? (
         <div style={{ padding: 40, textAlign: "center" }}>Ładowanie drabinki...</div>
       ) : error ? (
@@ -720,31 +742,25 @@ export default function FazaPucharowaPage() {
                 return (
                   <div key={matchIdx} style={{ position: 'absolute', left: cardLeft, top: leftPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
                     {matchIdx === 0 && roundIdx < roundLabels.length && (
-                      <div className="bracket-round-title" style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: -32,
-                        width: '100%',
-                        fontWeight: 700,
-                        fontSize: 18,
-                        color: '#2d3748',
-                        background: 'rgba(255,255,255,0.85)',
-                        textAlign: 'center',
-                        pointerEvents: 'none',
-                        zIndex: 3,
-                        borderRadius: roundLabels[roundIdx] === currentPhase ? 8 : 0,
-                        boxShadow: roundLabels[roundIdx] === currentPhase ? '0 2px 8px #2563eb55' : undefined
-                      }}>
+                      <div
+                        className={
+                          'bracket-round-title' +
+                          (roundLabels[roundIdx] === currentPhase ? ' bracket-round-title-current' : '')
+                        }
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: -32,
+                          width: '100%',
+                          fontWeight: 700,
+                          fontSize: 18,
+                          textAlign: 'center',
+                          pointerEvents: 'none',
+                          zIndex: 3
+                        }}
+                      >
                         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                           <span>{roundLabels[roundIdx]}</span>
-                          {roundLabels[roundIdx] === currentPhase && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, marginLeft: 8 }} title="Obecna faza">
-                              <svg width="24" height="24" style={{ display: 'block', margin: '0 auto' }}>
-                                <circle cx="12" cy="12" r="10" fill="#FFD700" />
-                                <text x="12" y="17" textAnchor="middle" fontSize="18" fill="#fff" fontWeight="bold">★</text>
-                              </svg>
-                            </span>
-                          )}
                         </span>
                       </div>
                     )}
@@ -775,29 +791,25 @@ export default function FazaPucharowaPage() {
                 return (
                   <div key={matchIdx} style={{ position: 'absolute', left: cardLeft, top: rightPositionsShifted[roundIdx][matchIdx].y, width: CARD_WIDTH, zIndex: 2 }}>
                     {matchIdx === 0 && roundIdx < roundLabels.length && (
-                      <div className="bracket-round-title" style={{
-                        position: 'absolute',
-                        left: 0,
-                        top: -32,
-                        width: '100%',
-                        fontWeight: 700,
-                        fontSize: 18,
-                        color: '#2d3748',
-                        background: 'rgba(255,255,255,0.85)',
-                        textAlign: 'center',
-                        pointerEvents: 'none',
-                        zIndex: 3
-                      }}>
+                      <div
+                        className={
+                          'bracket-round-title' +
+                          (roundLabels[roundIdx] === currentPhase ? ' bracket-round-title-current' : '')
+                        }
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: -32,
+                          width: '100%',
+                          fontWeight: 700,
+                          fontSize: 18,
+                          textAlign: 'center',
+                          pointerEvents: 'none',
+                          zIndex: 3
+                        }}
+                      >
                         <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                           <span>{roundLabels[roundIdx]}</span>
-                          {roundLabels[roundIdx] === currentPhase && (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, marginLeft: 8 }} title="Obecna faza">
-                              <svg width="24" height="24" style={{ display: 'block', margin: '0 auto' }}>
-                                <circle cx="12" cy="12" r="10" fill="#FFD700" />
-                                <text x="12" y="17" textAnchor="middle" fontSize="18" fill="#fff" fontWeight="bold">★</text>
-                              </svg>
-                            </span>
-                          )}
                         </span>
                       </div>
                     )}
@@ -823,8 +835,8 @@ export default function FazaPucharowaPage() {
               key="center-final"
               style={{
                 position: 'absolute',
-                left: finalPos.x,
-                top: finalPos.y,
+                left: finalPos.x - 58,
+                top: finalPos.y + 40,
                 width: CARD_WIDTH,
                 height: CARD_HEIGHT,
                 zIndex: 3,
@@ -835,18 +847,6 @@ export default function FazaPucharowaPage() {
               }}
             >
               <div style={{ width: CARD_WIDTH }}>
-                <div style={{
-                  textAlign: 'center',
-                  fontWeight: 900,
-                  fontSize: 18,
-                  color: '#0d7337',
-                  letterSpacing: 1,
-                  textShadow: '0 2px 8px #fff, 0 1px 0 #4299e1',
-                  background: 'rgba(255,255,255,0.92)',
-                  padding: '0.2em 0 0.3em 0',
-                  borderRadius: 10,
-                  marginBottom: 2
-                }}>Finał</div>
                 <MatchCard
                   teamA={finalMatch.teamA}
                   teamB={finalMatch.teamB}
@@ -857,6 +857,18 @@ export default function FazaPucharowaPage() {
                   showOpis={false}
                   phase={leftRounds.length + 1}
                 />
+                <div style={{
+                  textAlign: 'center',
+                  fontWeight: 900,
+                  fontSize: 18,
+                  color: '#0d7337',
+                  letterSpacing: 1,
+                  textShadow: '0 2px 8px #fff, 0 1px 0 #4299e1',
+                  background: 'rgba(255,255,255,0.92)',
+                  padding: '0.2em 0 0.3em 0',
+                  borderRadius: 10,
+                  marginTop: 8
+                }}>Finał</div>
               </div>
             </div>
           )}

@@ -1,10 +1,16 @@
+
+
+.bracket-svg {
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
+}
 /*
 Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wierszu.
 */
 /* Make container fill viewport, remove extra margin/padding */
 .faza-pucharowa-container {
   width: 100vw;
-  /* height: 100vh;  <-- REMOVE to allow container to shrink to content */
   min-width: 0;
   min-height: 0;
   margin: 0;
@@ -14,10 +20,10 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   box-shadow: none;
   display: flex;
   flex-direction: column;
-  /* Increase top margin for navbar, keep left margin, add minimal bottom padding */
   padding-top: 96px;
-  padding-left: 48px;
+  padding-left: 0;
   padding-bottom: 1.5rem;
+  overflow-x: auto;
 }
 
 .faza-pucharowa-container h1 {
@@ -28,24 +34,6 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 }
 
 
-/* Nowy układ: drabinka wertykalna, kolumny to rundy, kafelki meczów są centrowane między zwycięzcami poprzednich meczów */
-
-/* Make bracket container fill parent, remove border radius/shadow, no extra padding */
-.bracket-svg-container {
-  width: 100vw;
-  min-width: 0;
-  min-height: 0;
-  margin: 0;
-  position: relative;
-  background: #f8fafc;
-  overflow: auto;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0;
-  /* Increase left margin for bracket, REDUCE bottom margin */
-  padding-left: 48px;
-  padding-bottom: 0.5rem;
-}
 
 .bracket-col-svg {
   position: absolute;
@@ -57,11 +45,22 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 }
 
 .bracket-round-title {
-  margin-bottom: 1.2rem;
-  font-size: 1.1rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
   color: #2d3748;
   font-weight: 600;
   text-align: center;
+  background: rgba(255,255,255,0.85);
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 0.02em 0.05em;
+  transition: background 0.2s, color 0.2s;
+}
+
+.bracket-round-title-current {
+  background: #ffe066 !important;
+  color: #7c4700 !important;
+  box-shadow: 0 2px 8px #ffe06699;
 }
 
 .bracket-row {
@@ -72,12 +71,10 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   margin-bottom: 2.5rem;
 }
 
-.bracket-row-offset {
-  /* offset for centering between previous matches, set inline in JS */
-}
-
-
+/* Niebieskie obramowanie jak w finale */
+/* Niebieskie obramowanie jak w finale */
 .match-card {
+  border: 3.5px solid #4299e1;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -92,13 +89,12 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   font-size: 1.13rem;
   position: relative;
   z-index: 2;
-  border: 2px solid #e2e8f0;
   gap: 1.2rem;
   word-break: break-word;
 }
 
+/* Dodatkowe podświetlenie finału */
 .match-card.highlight {
-  border-color: #4299e1;
   background: #ebf8ff;
 }
 
@@ -193,14 +189,16 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 .match-card {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  align-items: center;
+  justify-content: center;
   background: #fff;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  min-width: 210px;
-  width: 210px;
-  min-height: 40px;
+  min-width: 220px;
+  width: 220px;
+  max-width: 220px;
+  min-height: 4.3em;
+  height: 4.3em;
   padding: 0.25rem 0.4rem 0.18rem 0.4rem;
   font-size: 0.82rem;
   position: relative;
@@ -208,6 +206,7 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   border: 2px solid #e2e8f0;
   gap: 0.1rem;
 }
+
 .match-top-row {
   display: flex;
   flex-direction: row;
@@ -234,8 +233,8 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  min-width: 60px;
-  max-width: 90px;
+  min-width: 70px;
+  max-width: 100px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -250,7 +249,7 @@ Nowy styl drabinki poziomej z czytelnymi liniami i kartami meczów w jednym wier
 }
 .nazwa {
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: 0.78rem;
   color: #2b6cb0;
   white-space: nowrap;
   overflow: hidden;
