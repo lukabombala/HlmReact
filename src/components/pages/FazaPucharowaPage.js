@@ -719,7 +719,7 @@ export default function FazaPucharowaPage() {
           <li>Każda runda trwa jeden miesiac, na koniec miesiąca zastęp który zdobędzie więcej punktów przechodzi do kolejnej rundy.</li>
           <li>Więcej informacji w <b><a href="/regulamin" target="_blank" rel="noopener noreferrer">regulaminie Fazy Pucharowej</a></b></li>
         </ul>
-        Życzymy powodzenia wszystkim zastęp i niech zwycięży najlepszy!
+        Życzymy powodzenia wszystkim zastępom i niech zwycięży najlepszy!
       </div>
       {loading ? (
         <div style={{ padding: 40, textAlign: "center" }}>Ładowanie drabinki...</div>
