@@ -708,7 +708,7 @@ export default function FazaPucharowaPage() {
         padding: '18px 28px',
         fontSize: 18,
         color: '#1a365d',
-        boxShadow: '0 2px 12px #4299e122',
+        boxShadow: '0 2px 12px #08101622',
         lineHeight: 1.6
       }}>
         <b>Witamy w fazie pucharowej HLM sezonu 2025/2026!</b><br/>
