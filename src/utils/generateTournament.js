@@ -79,40 +79,19 @@ export function generateTournament(teams) {
     prevPhaseMatches.push(match);
   }
 
-  // For phase 2: pre-fill byes (winners from phase 1 with only one team)
+  // For phase 2+: leave all team slots empty
   let phase = 2;
   let matchesInPhase = Math.floor(prevPhaseMatches.length / 2);
-  let prevWinners = prevPhaseMatches.map(m => {
-    if (m.teamA_id && !m.teamB_id) {
-      return { id: m.teamA_id, name: m.teamA_name };
-    } else if (!m.teamA_id && m.teamB_id) {
-      return { id: m.teamB_id, name: m.teamB_name };
-    }
-    return null;
-  });
   while (matchesInPhase >= 1) {
     for (let i = 0; i < matchesInPhase; i++) {
-      let teamA_id = null, teamA_name = null, teamB_id = null, teamB_name = null;
-      if (phase === 2) {
-        const prev1 = prevWinners[i * 2];
-        const prev2 = prevWinners[i * 2 + 1];
-        // Only advance a bye if exactly one predecessor is a bye
-        if (prev1 && !prev2) {
-          teamA_id = prev1.id;
-          teamA_name = prev1.name;
-        } else if (!prev1 && prev2) {
-          teamA_id = prev2.id;
-          teamA_name = prev2.name;
-        } // if both are null or both are present, leave both slots empty
-      }
       const match = {
         matchId: matchId(phase, i),
         phase,
         matchOrder: i,
-        teamA_id,
-        teamB_id,
-        teamA_name,
-        teamB_name,
+        teamA_id: null,
+        teamB_id: null,
+        teamA_name: null,
+        teamB_name: null,
         scoreA: null,
         scoreB: null,
         winnerId: null,
@@ -122,7 +101,6 @@ export function generateTournament(teams) {
     }
     matchesInPhase = Math.floor(matchesInPhase / 2);
     phase++;
-    prevWinners = Array(matchesInPhase).fill(null); // Only phase 2 needs pre-filling
   }
 
   return allMatches;

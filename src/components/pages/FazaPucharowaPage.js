@@ -406,66 +406,38 @@ export default function FazaPucharowaPage() {
     for (let j = Math.ceil(r.length / 2); j < r.length; j++) {
       const match = r[j];
       let teamA = null, teamB = null;
-      if (i === 0) {
-        if (match.teamA_id) {
-          let nazwa = match.teamA_name || "";
-          if (patrolNameCounts[nazwa] > 1) {
-            const unit = teamIdToUnit[match.teamA_id];
-            let teamNumber = '';
-            if (unit?.shortName) {
-              const match = unit.shortName.match(/^(\d+)/);
-              if (match) teamNumber = match[1];
-            }
-            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
-          }
-          let unitId = null;
-          const z = zastepy.find(z => z.id === match.teamA_id);
-          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
-          teamA = { nazwa, opis: match.teamA_opis, unitId };
-        }
-        if (match.teamB_id) {
-          let nazwa = match.teamB_name || "";
-          if (patrolNameCounts[nazwa] > 1) {
-            const unit = teamIdToUnit[match.teamB_id];
-            let teamNumber = '';
-            if (unit?.shortName) {
-              const match = unit.shortName.match(/^(\d+)/);
-              if (match) teamNumber = match[1];
-            }
-            if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
-          }
-          let unitId = null;
-          const z = zastepy.find(z => z.id === match.teamB_id);
-          if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
-          teamB = { nazwa, unitId };
-        }
-      } else if (prevRightWinners) {
-        const prev1 = prevRightWinners[(j - Math.ceil(r.length / 2)) * 2] || null;
-        const prev2 = prevRightWinners[(j - Math.ceil(r.length / 2)) * 2 + 1] || null;
-        let teamAName = prev1 && prev1.nazwa ? prev1.nazwa : "";
-        let teamBName = prev2 && prev2.nazwa ? prev2.nazwa : "";
-        if (patrolNameCounts[teamAName.split(' - ')[0]] > 1 && prev1 && prev1.id) {
-          const unit = teamIdToUnit[prev1.id];
+      // Build teamA/teamB directly from match data, do not auto-determine
+      if (match.teamA_id) {
+        let nazwa = match.teamA_name || "";
+        if (patrolNameCounts[nazwa] > 1) {
+          const unit = teamIdToUnit[match.teamA_id];
           let teamNumber = '';
           if (unit?.shortName) {
-            const match = unit.shortName.match(/^(\d+)/);
-            if (match) teamNumber = match[1];
+            const m = unit.shortName.match(/^([0-9]+)/);
+            if (m) teamNumber = m[1];
           }
-          if (teamNumber && !teamAName.includes(' - ' + teamNumber)) teamAName = teamAName.split(' - ')[0] + ' - ' + teamNumber;
+          if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
         }
-        if (patrolNameCounts[teamBName.split(' - ')[0]] > 1 && prev2 && prev2.id) {
-          const unit = teamIdToUnit[prev2.id];
+        let unitId = null;
+        const z = zastepy.find(z => z.id === match.teamA_id);
+        if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+        teamA = { nazwa, opis: match.teamA_opis, unitId };
+      }
+      if (match.teamB_id) {
+        let nazwa = match.teamB_name || "";
+        if (patrolNameCounts[nazwa] > 1) {
+          const unit = teamIdToUnit[match.teamB_id];
           let teamNumber = '';
           if (unit?.shortName) {
-            const match = unit.shortName.match(/^(\d+)/);
-            if (match) teamNumber = match[1];
+            const m = unit.shortName.match(/^([0-9]+)/);
+            if (m) teamNumber = m[1];
           }
-          if (teamNumber && !teamBName.includes(' - ' + teamNumber)) teamBName = teamBName.split(' - ')[0] + ' - ' + teamNumber;
+          if (teamNumber && !nazwa.includes(' - ' + teamNumber)) nazwa = nazwa.split(' - ')[0] + ' - ' + teamNumber;
         }
-        let unitIdA = prev1 && prev1.id ? (zastepy.find(z => z.id === prev1.id)?.jednostka?.[0]?.id) : null;
-        let unitIdB = prev2 && prev2.id ? (zastepy.find(z => z.id === prev2.id)?.jednostka?.[0]?.id) : null;
-        teamA = prev1 ? { nazwa: teamAName, unitId: unitIdA } : null;
-        teamB = prev2 ? { nazwa: teamBName, unitId: unitIdB } : null;
+        let unitId = null;
+        const z = zastepy.find(z => z.id === match.teamB_id);
+        if (z && z.jednostka && z.jednostka[0]) unitId = z.jednostka[0].id;
+        teamB = { nazwa, unitId };
       }
       right.push({ ...match, teamA, teamB });
     }
@@ -715,7 +687,7 @@ export default function FazaPucharowaPage() {
         W tym roku obowiązują następujące zasady:<br/>
         <ul style={{margin: '10px 0 10px 24px', fontSize: 16}}>
           <li>Zmagania pucharowe odbędą się w 5 rundach.</li>
-          <li>{roundsNoFirst[0] ? roundsNoFirst[0].filter(m => (m.teamA_id && !m.teamB_id) || (!m.teamA_id && m.teamB_id)).length : 0} najlepszych zastępów otrzymuje "wolny los" i nie musi walczyć w 1 rundzie (według punktacji ze stycznia 2026).</li>
+          <li>{roundsNoFirst[0] ? roundsNoFirst[0].filter(m => (m.teamA_id && !m.teamB_id) || (!m.teamA_id && m.teamB_id)).length : 0} najlepszych zastępów otrzymuje "wolny los" i nie musi walczyć w 1 rundzie (według punktacji z 15 stycznia 2026).</li>
           <li>Każda runda trwa jeden miesiac, na koniec miesiąca zastęp który zdobędzie więcej punktów przechodzi do kolejnej rundy.</li>
           <li>Więcej informacji w <b><a href="/regulamin" target="_blank" rel="noopener noreferrer">regulaminie Fazy Pucharowej</a></b></li>
         </ul>

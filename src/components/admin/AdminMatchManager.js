@@ -27,9 +27,20 @@ export default function AdminMatchManager() {
     );
   };
 
+  const handleTeamChange = (id, field, value) => {
+    setMatches(matches =>
+      matches.map(m => m.id === id ? { ...m, [field]: value } : m)
+    );
+  };
+
   const handleSave = async (match) => {
     setSaving(s => ({ ...s, [match.id]: true }));
-    const { id, scoreA, scoreB, teamA_id, teamB_id, nextMatchId, teamA_name, teamB_name } = match;
+    const { id, scoreA, scoreB, teamA_id, teamB_id, nextMatchId } = match;
+    // Get team names for selected teams
+    const teamAObj = teamA_id ? zastepy.find(z => z.id === teamA_id) : null;
+    const teamBObj = teamB_id ? zastepy.find(z => z.id === teamB_id) : null;
+    const teamA_name = teamAObj ? (teamAObj.snapshot?.fullName || teamAObj.fullName || teamAObj.nazwa || "") : "";
+    const teamB_name = teamBObj ? (teamBObj.snapshot?.fullName || teamBObj.fullName || teamBObj.nazwa || "") : "";
     let winnerId = null;
     let winnerName = null;
     if (scoreA != null && scoreB != null && teamA_id && teamB_id) {
@@ -41,7 +52,7 @@ export default function AdminMatchManager() {
         winnerName = teamB_name;
       }
     }
-    await updateDoc(doc(db, "matches", id), { scoreA, scoreB, winnerId });
+    await updateDoc(doc(db, "matches", id), { scoreA, scoreB, teamA_id, teamB_id, teamA_name, teamB_name, winnerId });
     // Progression logic: auto-advance winners to next phase
     if (nextMatchId && winnerId) {
       const nextRef = doc(db, "matches", nextMatchId);
@@ -60,7 +71,6 @@ export default function AdminMatchManager() {
         if (Object.keys(update).length > 0) {
           await updateDoc(nextRef, update);
         }
-
         // Now, check if both teamA_id and teamB_id are set, and if so, ensure their names are set
         const afterUpdateSnap = await getDoc(nextRef);
         const afterUpdate = afterUpdateSnap.data();
@@ -74,12 +84,16 @@ export default function AdminMatchManager() {
 
   if (!matches.length) return <Spinner animation="border" className="my-4" />;
 
-  // Map teamId to unit name
+  // Map teamId to unit name and patrol name
   const teamIdToUnitName = {};
+  const teamIdToPatrolName = {};
   zastepy.forEach(z => {
-    if (z.id && z.jednostka && z.jednostka[0] && z.jednostka[0].id) {
-      const unit = jednostki.find(j => j.id === z.jednostka[0].id);
-      teamIdToUnitName[z.id] = unit?.shortName || "";
+    if (z.id) {
+      teamIdToPatrolName[z.id] = z.nazwa || "";
+      if (z.jednostka && z.jednostka[0] && z.jednostka[0].id) {
+        const unit = jednostki.find(j => j.id === z.jednostka[0].id);
+        teamIdToUnitName[z.id] = unit?.shortName || "";
+      }
     }
   });
 
@@ -109,23 +123,41 @@ export default function AdminMatchManager() {
             <tr key={match.id}>
               <td>{match.matchId}</td>
               <td>{match.phase}</td>
-              <td>{
-                match.teamA_id
-                  ? <span>{match.teamA_name || "-"}<br /><span style={{ fontSize: '0.78em', color: '#888', fontWeight: 400 }}>{teamIdToUnitName[match.teamA_id] || ""}</span></span>
-                  : (Number(match.phase) === 1 && match.teamB_id ? <i>BYE</i> : <i style={{ color: '#bbb' }}>–</i>)
-              }</td>
-              <td>{
-                match.teamB_id
-                  ? <span>{match.teamB_name || "-"}<br /><span style={{ fontSize: '0.78em', color: '#888', fontWeight: 400 }}>{teamIdToUnitName[match.teamB_id] || ""}</span></span>
-                  : (Number(match.phase) === 1 && match.teamA_id ? <i>BYE</i> : <i style={{ color: '#bbb' }}>–</i>)
-              }</td>
+              <td>
+                <Form.Select
+                  value={match.teamA_id || ""}
+                  onChange={e => handleTeamChange(match.id, "teamA_id", e.target.value)}
+                  disabled={saving[match.id]}
+                >
+                  <option value="">– wybierz –</option>
+                  {zastepy.map(z => (
+                    <option key={z.id} value={z.id}>
+                      {z.snapshot?.fullName || z.fullName} - {teamIdToUnitName[z.id] || ""}
+                    </option>
+                  ))}
+                </Form.Select>
+              </td>
+              <td>
+                <Form.Select
+                  value={match.teamB_id || ""}
+                  onChange={e => handleTeamChange(match.id, "teamB_id", e.target.value)}
+                  disabled={saving[match.id]}
+                >
+                  <option value="">– wybierz –</option>
+                  {zastepy.map(z => (
+                    <option key={z.id} value={z.id}>
+                      {z.snapshot?.fullName || z.fullName} - {teamIdToUnitName[z.id] || ""}
+                    </option>
+                  ))}
+                </Form.Select>
+              </td>
               <td>
                 <Form.Control
                   type="number"
                   value={match.scoreA ?? ""}
                   onChange={e => handleScoreChange(match.id, "scoreA", e.target.value === "" ? null : Number(e.target.value))}
                   style={{ width: 60, display: "inline" }}
-                  disabled={!match.teamA_id || !match.teamB_id}
+                  disabled={saving[match.id] || !match.teamA_id || !match.teamB_id}
                 />
                 {" : "}
                 <Form.Control
@@ -133,11 +165,11 @@ export default function AdminMatchManager() {
                   value={match.scoreB ?? ""}
                   onChange={e => handleScoreChange(match.id, "scoreB", e.target.value === "" ? null : Number(e.target.value))}
                   style={{ width: 60, display: "inline" }}
-                  disabled={!match.teamA_id || !match.teamB_id}
+                  disabled={saving[match.id] || !match.teamA_id || !match.teamB_id}
                 />
               </td>
               <td>
-                <Button size="sm" onClick={() => handleSave(match)} disabled={saving[match.id] || !match.teamA_id || !match.teamB_id}>
+                <Button size="sm" onClick={() => handleSave(match)} disabled={saving[match.id] || (!match.teamA_id && !match.teamB_id)}>
                   {saving[match.id] ? <Spinner size="sm" animation="border" /> : "Zapisz"}
                 </Button>
               </td>
