@@ -59,7 +59,7 @@ export default function TeamsSection() {
                       <div className="d-flex flex-wrap gap-3 text-muted small">
                         <div className="d-flex align-items-center gap-1">
                           <MapPin size={16} />
-                          Wrocław
+                          {team.id === "0zQ12o8ZqqvxLkyP3H9J" ? "Sobótka" : "Wrocław"}
                         </div>
                         <div className="d-flex align-items-center gap-1">
                           <Users size={16} />
